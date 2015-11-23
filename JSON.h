@@ -296,7 +296,7 @@ namespace JSON {
         explicit Bool(bool b = false) : BuiltIn(impl::to_string(b)) {}
         explicit Bool(const std::string& s) : BuiltIn(impl::Validator<bool>{}(s)){}
         explicit Bool(std::string&& s) : BuiltIn(impl::Validator<bool>{}(std::move(s))) {}
-        explicit Bool(const char * s) : BuiltIn(std::string(s)) {}
+        explicit Bool(const char * s) : Bool(std::string(s)) {}
     };
 
 
