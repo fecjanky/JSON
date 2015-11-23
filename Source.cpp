@@ -16,7 +16,7 @@ int main(int, char**) try{
 
     auto p = JSON::Create<JSON::Object>(
         //JSON::Object::Entry{ "number",JSON::Create<JSON::Number>(4.4255) } , 
-        JSON::Object::Entry{ "message",JSON::Create<JSON::String>("Hello") } 
+        JSON::Object::Entry( "message",JSON::Create<JSON::String>("Hello") ) 
     );
 
     auto& pr = *p;

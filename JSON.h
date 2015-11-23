@@ -13,26 +13,6 @@
 #include <iomanip>
 #include <iostream>
 
-namespace JSON {
-    struct Boolean {
-        bool val;
-        Boolean(bool b = false) :val{ b } {}
-        operator bool()const noexcept {
-            return val;
-        }
-    };
-}
-
-std::istream& operator>>(std::istream& is, JSON::Boolean);
-
-namespace std {
-    std::string to_string(JSON::Boolean b) {
-        if (b)
-            return "true";
-        else
-            return "false";
-    }
-}
 
 namespace JSON {
 
@@ -217,9 +197,8 @@ namespace JSON {
         type values;
     };
 
-    template<typename T>
-    class BuiltInValue : public IObject {
-    public:
+    namespace impl {
+        template<typename T>
         struct Validator {
             const std::string& operator()(const std::string& rep) const {
                 validate(rep);
@@ -231,52 +210,61 @@ namespace JSON {
                 return std::move(rep);
             }
         private:
-            void validate(const std::string& rep) const  {
+            void validate(const std::string& rep) const {
                 T temp;
                 std::stringstream ss(rep);
-                ss << std::boolalpha;
                 ss >> temp;
                 if (std::to_string(temp).find(rep) != 0)
                     throw ValueError();
             }
         };
 
-        explicit BuiltInValue(T t) : value{std::to_string(t)} {}
-        explicit BuiltInValue(const std::string& s) : value{ Validator{}(s) }{}
-        explicit BuiltInValue(std::string&& s) : value{ Validator{}(std::move(s)) } {}
+        template<>
+        struct Validator<nullptr_t> {
+            const std::string& operator()(const std::string& rep) const {
+                validate(rep);
+                return rep;
+            }
 
-        IObject& operator[](const std::string& key) override {
-            throw TypeError();
+            std::string operator()(std::string&& rep) const {
+                validate(rep);
+                return std::move(rep);
+            }
+        private:
+            void validate(const std::string& rep) const {
+                if (rep != value_null)
+                    throw ValueError();
+            }
+        };
+
+        template<>
+        struct Validator<bool> {
+            const std::string& operator()(const std::string& rep) const {
+                validate(rep);
+                return rep;
+            }
+
+            std::string operator()(std::string&& rep) const {
+                validate(rep);
+                return std::move(rep);
+            }
+        private:
+            void validate(const std::string& rep) const {
+                if (rep != value_false || rep != value_true)
+                    throw ValueError();
+            }
+        };
+
+        inline std::string to_string(bool b) {
+            if (b)
+                return JSON::value_true;
+            else
+                return JSON::value_false;
         }
+    }
 
-        const IObject& operator[](const std::string& key) const override {
-            throw TypeError();
-        }
-
-        IObject& operator[](size_t index) override {
-            throw TypeError();
-        }
-
-        const IObject& operator[](size_t index) const override {
-            throw TypeError();
-        }
-
-        virtual const std::string& getValue() const override {
-            return value;
-        }
-
-    private:
-        std::string value;
-    };
-
-
-    template<>
-    class BuiltInValue<std::string> : public IObject {
+    class BuiltIn : public IObject {
     public:
-        
-        explicit BuiltInValue(const std::string& t) : value{ t } {}
-        explicit BuiltInValue(std::string&& t) : value{ std::move(t) } {}
-
         IObject& operator[](const std::string& key) override {
             throw TypeError();
         }
@@ -296,21 +284,57 @@ namespace JSON {
         virtual const std::string& getValue() const override {
             return value;
         }
-
+    protected:
+        BuiltIn(const std::string& s) : value{ s } {}
+        BuiltIn(std::string&& s) : value{ std::move(s) } {}
     private:
         std::string value;
     };
 
-    using Number = BuiltInValue<double>;
-    using Bool = BuiltInValue<Boolean>;
-    using Null = BuiltInValue<nullptr_t>;
-    using String = BuiltInValue<std::string>;
+    class Bool : public BuiltIn {
+    public:
+        explicit Bool(bool b = false) : BuiltIn(impl::to_string(b)) {}
+        explicit Bool(const std::string& s) : BuiltIn(impl::Validator<bool>{}(s)){}
+        explicit Bool(std::string&& s) : BuiltIn(impl::Validator<bool>{}(std::move(s))) {}
+        explicit Bool(const char * s) : BuiltIn(std::string(s)) {}
+    };
+
+
+    class String : public BuiltIn {
+    public:
+        String() : BuiltIn(std::string{}) {}
+        explicit String(const std::string& t) : BuiltIn(t) {}
+        explicit String(std::string&& t) : BuiltIn(std::move(t)) {}
+    };
+
+    class Number : public BuiltIn {
+    public:
+        explicit Number(double d = 0.0) : BuiltIn(std::to_string(d)) {}
+        explicit Number(const std::string& s) : BuiltIn(impl::Validator<double>{}(s)){}
+        explicit Number(std::string&& s) : BuiltIn(impl::Validator<double>{}(std::move(s))) {}
+    };
+
+    class Null : public BuiltIn {
+    public:
+        explicit Null() : BuiltIn(value_null) {}
+        explicit Null(const std::string& s) : BuiltIn(impl::Validator<nullptr_t>{}(s)) {}
+        explicit Null(std::string&& s) : BuiltIn(impl::Validator<nullptr_t>{}(std::move(s))) {}
+    };
 
     template<typename T>
     struct is_JSON_type : public std::false_type {};
     
-    template<typename T>
-    struct is_JSON_type<BuiltInValue<T>> : public std::true_type {};
+    template<>
+    struct is_JSON_type<BuiltIn> : public std::true_type {};
+
+    template<>
+    struct is_JSON_type<Bool> : public std::true_type {};
+
+    template<>
+    struct is_JSON_type<Number> : public std::true_type {};
+
+    template<>
+    struct is_JSON_type<String> : public std::true_type {};
 
     template<>
     struct is_JSON_type<Array> : public std::true_type {};
@@ -325,31 +349,7 @@ namespace JSON {
         return IObject::ptr(new T(std::forward<Args>(args)...));
     }
 
-    inline std::istream& operator>>(std::istream& is, JSON::Boolean& b) {
-        std::string s;
-        is >> s;
-        if (s == RFC7159::value_false)
-            b = false;
-        else if (s == RFC7159::value_true)
-            b = true;
-        else
-            //is.failbit 
-            // TODO: indicate error
-            ;
-        return is;
-    }
-
-    inline std::ostream& operator<<(std::ostream& os, JSON::Boolean b) {
-        if (b)
-            os << RFC7159::value_true;
-        else
-            os << RFC7159::value_false;
-        return os;
-    }
-
 }
-
-
 
 
 #endif //JSON_H_INCLUDED__
