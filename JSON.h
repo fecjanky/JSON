@@ -16,11 +16,15 @@
 #include <stack>
 #include <functional>
 #include <array>
+#include <tuple>
 
 #if __cplusplus  < 201402L
 namespace std{
     template<bool Val,typename T = void>
     using enable_if_t = typename std::enable_if<Val,T>::type;
+
+    template<typename T>
+    using decay_t = typename std::decay<T>::type;
 }
 #endif
 
@@ -114,6 +118,10 @@ namespace JSON {
         virtual const IObject& operator[](size_t index) const = 0;
 
         virtual const std::string& getValue() const = 0;
+
+        operator std::string () const {
+            return getValue();
+        }
 
         virtual ~IObject() = default;
     };
@@ -413,17 +421,105 @@ namespace JSON {
     }
 
     namespace impl{
-        class Parser{
-        public:
+
+        struct IParser;
+        class WSParser;
+        class NullParser;
+        class TrueParser;
+        class FalseParser;
+        class ObjectParser;
+        class ArrayParser;
+        class NumberParser;
+        class StringParser;
+
+        using parsers_t = std::tuple<WSParser,NullParser,TrueParser,FalseParser,ObjectParser,ArrayParser,NumberParser,StringParser>;
+
+        struct IParser{
             struct Exception : public std::exception {};
             using obj_container_t = std::vector<IObjectPtr>;
             using closure_stack_t = std::stack<IAggregateObjectPtr>;
-            using state_t = void (Parser::*)(char c,obj_container_t& objs,closure_stack_t& closures);
 
-            Parser() : state {&Parser::init_state}{}
+            virtual IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) = 0;
 
-            void operator()(char c,obj_container_t& objs,closure_stack_t& closures){
-                (this->*state)(c,objs,closures);
+            virtual ~IParser() = default;
+        };
+
+        class NullParser : public IParser{
+        public:
+            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
+                return this;
+            }
+        private:
+        };
+
+        class WSParser : public IParser{
+        public:
+            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
+                if (is_ws(c))
+                    return this;
+                else{
+                    // TODO: dispatch based on symbol
+                    return this;
+                }
+            }
+        private:
+        };
+
+        class TrueParser : public IParser{
+        public:
+            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
+                return this;
+            }
+        private:
+        };
+
+        class FalseParser : public IParser{
+        public:
+            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
+                return this;
+            }
+        private:
+        };
+
+        class ObjectParser : public IParser{
+        public:
+            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
+                return this;
+            }
+        private:
+        };
+
+        class ArrayParser : public IParser{
+        public:
+            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
+                return this;
+            }
+        private:
+        };
+
+        class NumberParser : public IParser{
+        public:
+            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
+                return this;
+            }
+        private:
+        };
+
+        class StringParser : public IParser{
+        public:
+            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
+                return this;
+            }
+        private:
+        };
+
+        class Parser{
+        public:
+            // TODO: for c++14 use tuple get with Type instead of index
+            Parser() : parsers{},current_parser(&std::get<0>(parsers)){}
+
+            void operator()(char c,IParser::obj_container_t& objs,IParser::closure_stack_t& closures){
+                current_parser = (*current_parser)(parsers,c,objs,closures);
             }
 
             Parser(const Parser&) = delete;
@@ -432,40 +528,22 @@ namespace JSON {
             Parser& operator=(Parser&&) = delete;
 
         private:
-            void init_state(char c,obj_container_t& objs,closure_stack_t& closures){
-
-                if(0){
-                    state = &Parser::init_state;
-                } else {
-                    switch(c){
-                        case begin_array :
-                            break;
-                        case begin_object :
-                            closures.push(IAggregateObjectPtr{new Object()});
-                            state = &Parser::object_closure_state;
-                            break;
-                        default:
-                            throw Exception();
-                    }
-                }
-            }
-
-            void object_closure_state(char c,obj_container_t& objs,closure_stack_t& closures){ }
-
-            std::string current_token;
-            state_t state;
+            parsers_t parsers;
+            IParser* current_parser;
         };
     }
 
-    template<typename InputIterator>
-    impl::Parser::obj_container_t parse(InputIterator start,InputIterator end){
-        impl::Parser::obj_container_t objects;
-        impl::Parser::closure_stack_t closure_stack;
+    template<typename ForwardIterator>
+    impl::IParser::obj_container_t parse(ForwardIterator start,ForwardIterator end){
+        impl::IParser::obj_container_t objects;
+        impl::IParser::closure_stack_t closure_stack;
         impl::Parser p;
+
         while(start != end){
             p(*start,objects,closure_stack);
             ++start;
         }
+
         return objects;
     };
 }

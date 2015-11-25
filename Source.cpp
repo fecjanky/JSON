@@ -21,6 +21,9 @@ int main(int, char**) try{
 
     auto& pr = *p;
     std::cout << pr["number"].getValue() << std::endl;
+
+    //pr["number"] = "kutyafasza";
+
     //std::cout << pr["number"]["kutyafasza"]. getValue() << std::endl;
     std::string json_text
     {R"--(
