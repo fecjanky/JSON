@@ -18,6 +18,7 @@
 #include <array>
 #include <tuple>
 
+/*
 #if __cplusplus  < 201402L
 namespace std{
     template<bool Val,typename T = void>
@@ -27,8 +28,16 @@ namespace std{
     using decay_t = typename std::decay<T>::type;
 }
 #endif
+*/
 
 namespace JSON {
+
+    namespace utils {
+        template<typename Arg,typename... Args>
+        constexpr std::array<Arg, sizeof...(Args)+1> make_array(Arg a, Args... args) {
+            return std::array<Arg, sizeof...(Args)+1>{a, args...};
+        }
+    }
 
     namespace RFC7159 {
 
@@ -72,25 +81,20 @@ namespace JSON {
         constexpr char  end_object = 0x7D; // } right curly bracket
         constexpr char  name_separator = 0x3A; // : colon
         constexpr char  value_separator = 0x2C; // , comma
-        constexpr std::array<char,4> ws = {
+        constexpr char ws[] = {
                 0x20, //  Space
                 0x09, //  Horizontal tab
                 0x0A, //  Line feed or New line
                 0x0D, //  Carriage return
         };
-        constexpr std::array<char,5>  value_false = { 0x66,0x61,0x6c,0x73,0x65 }; //false
-        constexpr std::array<char,4>  value_true = { 0x74,0x72,0x75,0x65 }; //true
-        constexpr std::array<char,4>  value_null = { 0x6e,0x75,0x6c,0x6c }; //null
+        constexpr char  value_false[] = "false"; //false
+        constexpr char  value_true[] = "true"; //true
+        constexpr char  value_null[] = "null"; //null
+        
+        constexpr char quotation_mark = 0x22; // "quotation-mark = %x22      ; "
 
-        bool is_ws(char c){
-            for(auto w : ws){
-                if( c == w) return true;
-            }
-            return false;
-        }
     }
-
-
+    
     using namespace RFC7159;
 
     struct Exception : public std::exception {};
@@ -316,7 +320,7 @@ namespace JSON {
             }
         private:
             void validate(const std::string& rep) const {
-                if (rep != std::string(value_null.begin(),value_null.end()))
+                if (rep != std::string(value_null))
                     throw ValueError();
             }
         };
@@ -334,17 +338,17 @@ namespace JSON {
             }
         private:
             void validate(const std::string& rep) const {
-                if (rep != std::string(value_false.begin(),value_false.end()) ||
-                    rep != std::string(value_true.begin(),value_true.end()))
+                if (rep != std::string(value_false) &&
+                    rep != std::string(value_true))
                     throw ValueError();
             }
         };
 
         inline std::string to_string(bool b) {
             if (b)
-                return std::string(JSON::value_true.begin(),JSON::value_true.end());
+                return std::string(value_true);
             else
-                return std::string(JSON::value_false.begin(),JSON::value_false.end());;
+                return std::string(value_false);
         }
     }
 
@@ -384,6 +388,21 @@ namespace JSON {
         explicit Bool(const char * s) : Bool(std::string(s)) {}
     };
 
+    class True : public Bool {
+    public:
+        True() : Bool(value_true) {}
+        explicit True(const std::string& s) : Bool(s) {}
+        explicit True(std::string&& s) : Bool(s) {}
+    };
+
+    class False : public Bool {
+    public:
+        False() : Bool(value_false) {};
+        explicit False(const std::string& s) : Bool(s) {}
+        explicit False(std::string&& s) : Bool(s) {}
+
+    };
+
 
     class String : public BuiltIn {
     public:
@@ -401,7 +420,7 @@ namespace JSON {
 
     class Null : public BuiltIn {
     public:
-        explicit Null() : BuiltIn(std::string(value_null.begin(),value_null.end())) {}
+        explicit Null() : BuiltIn(std::string(value_null)) {}
         explicit Null(const std::string& s) : BuiltIn(impl::Validator<nullptr_t>{}(s)) {}
         explicit Null(std::string&& s) : BuiltIn(impl::Validator<nullptr_t>{}(std::move(s))) {}
     };
@@ -411,6 +430,8 @@ namespace JSON {
     template<> struct is_JSON_type<Array> : public std::true_type {};
     template<> struct is_JSON_type<BuiltIn> : public std::true_type {};
     template<> struct is_JSON_type<Bool> : public std::true_type {};
+    template<> struct is_JSON_type<True> : public std::true_type {};
+    template<> struct is_JSON_type<False> : public std::true_type {};
     template<> struct is_JSON_type<String> : public std::true_type {};
     template<> struct is_JSON_type<Number> : public std::true_type {};
     template<> struct is_JSON_type<Null> : public std::true_type {};
@@ -420,132 +441,6 @@ namespace JSON {
         return IObjectPtr(new T(std::forward<Args>(args)...));
     }
 
-    namespace impl{
-
-        struct IParser;
-        class WSParser;
-        class NullParser;
-        class TrueParser;
-        class FalseParser;
-        class ObjectParser;
-        class ArrayParser;
-        class NumberParser;
-        class StringParser;
-
-        using parsers_t = std::tuple<WSParser,NullParser,TrueParser,FalseParser,ObjectParser,ArrayParser,NumberParser,StringParser>;
-
-        struct IParser{
-            struct Exception : public std::exception {};
-            using obj_container_t = std::vector<IObjectPtr>;
-            using closure_stack_t = std::stack<IAggregateObjectPtr>;
-
-            virtual IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) = 0;
-
-            virtual ~IParser() = default;
-        };
-
-        class NullParser : public IParser{
-        public:
-            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
-                return this;
-            }
-        private:
-        };
-
-        class WSParser : public IParser{
-        public:
-            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
-                if (is_ws(c))
-                    return this;
-                else{
-                    // TODO: dispatch based on symbol
-                    return this;
-                }
-            }
-        private:
-        };
-
-        class TrueParser : public IParser{
-        public:
-            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
-                return this;
-            }
-        private:
-        };
-
-        class FalseParser : public IParser{
-        public:
-            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
-                return this;
-            }
-        private:
-        };
-
-        class ObjectParser : public IParser{
-        public:
-            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
-                return this;
-            }
-        private:
-        };
-
-        class ArrayParser : public IParser{
-        public:
-            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
-                return this;
-            }
-        private:
-        };
-
-        class NumberParser : public IParser{
-        public:
-            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
-                return this;
-            }
-        private:
-        };
-
-        class StringParser : public IParser{
-        public:
-            IParser* operator()(parsers_t& parsers,char c,obj_container_t& objs,closure_stack_t& closures) override{
-                return this;
-            }
-        private:
-        };
-
-        class Parser{
-        public:
-            // TODO: for c++14 use tuple get with Type instead of index
-            Parser() : parsers{},current_parser(&std::get<0>(parsers)){}
-
-            void operator()(char c,IParser::obj_container_t& objs,IParser::closure_stack_t& closures){
-                current_parser = (*current_parser)(parsers,c,objs,closures);
-            }
-
-            Parser(const Parser&) = delete;
-            Parser& operator=(const Parser&) = delete;
-            Parser(Parser&&) = delete;
-            Parser& operator=(Parser&&) = delete;
-
-        private:
-            parsers_t parsers;
-            IParser* current_parser;
-        };
-    }
-
-    template<typename ForwardIterator>
-    impl::IParser::obj_container_t parse(ForwardIterator start,ForwardIterator end){
-        impl::IParser::obj_container_t objects;
-        impl::IParser::closure_stack_t closure_stack;
-        impl::Parser p;
-
-        while(start != end){
-            p(*start,objects,closure_stack);
-            ++start;
-        }
-
-        return objects;
-    };
 }
 
 

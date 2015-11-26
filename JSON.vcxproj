@@ -122,6 +122,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="JSON.h" />
+    <ClInclude Include="JSONParser.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />
