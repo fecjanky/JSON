@@ -22,6 +22,8 @@ namespace JSON {
         struct ISubParser;
         struct ISubParserState;
         struct IClosureObject;
+        template<typename ParserT>
+        class ParserTemplate;
         class WSParser;
         template<typename JSONLiteral>
         class LiteralParser;
@@ -33,13 +35,15 @@ namespace JSON {
         class NumberParser;
         class StringParser;
         
-        using ParserTuple = std::tuple<WSParser, NullParser, TrueParser, FalseParser, ObjectParser, ArrayParser, NumberParser, StringParser>;
+        //using ParserTuple = std::tuple<WSParser, NullParser, TrueParser, FalseParser, ObjectParser, ArrayParser, NumberParser, StringParser>;
+        using ParserTuple = std::tuple<WSParser, NullParser, TrueParser, FalseParser>;
         
         using IClosureObjectPtr = std::unique_ptr<IClosureObject>;
+        using ISubParserStatePtr = std::unique_ptr<ISubParserState>;
         using ObjContainer = std::vector<IObjectPtr>;
         using ClosureStack = std::stack<IClosureObjectPtr>;
         using ObjectStack = std::stack<IObjectPtr>;
-        using ParserStateStack = std::stack<std::unique_ptr<ISubParserState>>;
+        using ParserStateStack = std::stack<ISubParserStatePtr>;
 
         struct Exception : public std::exception {};
         struct InvalidStartingSymbol : public Exception {};
@@ -47,37 +51,47 @@ namespace JSON {
         struct ParsingIncomplete : public Exception {};
 
         template<typename JSONLiteral>
-        const char* getLiteral() { static_assert(0, "Type is not literal type"); }
+        const char* GetLiteral() { static_assert(0, "Type is not literal type"); }
 
-        template<> const char* getLiteral<Null>() { return value_null; }
-        template<> const char* getLiteral<True>() { return value_true; }
-        template<> const char* getLiteral<False>() { return value_false; }
+        template<> const char* GetLiteral<Null>() { return value_null; }
+        template<> const char* GetLiteral<True>() { return value_true; }
+        template<> const char* GetLiteral<False>() { return value_false; }
 
 
-        inline bool is_ws(char c) {
+        inline bool IsWhitespace(char c) {
             for (auto w : ws) if (c == w) return true;
             return false;
         }
 
         struct ISubParser {
             struct Exception : public std::exception {};
-            virtual ISubParser* operator()(IParser& p) = 0;
+            virtual ISubParser& operator()(IParser& p) = 0;
             virtual ~ISubParser() = default;
         };
 
         struct ISubParserState {
-            virtual ISubParser* getNextParser() = 0;
+            virtual ISubParser& getParser(IParser& p) = 0;
+            virtual IObjectPtr getObject() = 0;
             virtual ~ISubParserState() = default;
         };
+
+        template<typename SubParserT>
+        std::enable_if_t<std::is_base_of<ISubParser,SubParserT>::value
+            ,ISubParserStatePtr
+        > CreateState(IParser& p) {
+            return ISubParserStatePtr(new typename SubParserT::State{p});
+        }
 
         struct IParser {
             struct Exception : public std::exception {};
             virtual char getCurrentChar() const noexcept = 0;
             virtual ObjContainer& getObjects() noexcept = 0;
-            virtual ClosureStack& getClosureStack() noexcept = 0;
             virtual  ParserTuple& getParsers() noexcept = 0;
-            virtual  ObjectStack& getObjectStack() noexcept = 0;
-            virtual ParserStateStack& getParserStateStack() noexcept = 0;
+            virtual ParserStateStack& getStateStack() noexcept = 0;
+            virtual ISubParserStatePtr& getLastState() noexcept = 0;
+            
+            //virtual ClosureStack& getClosureStack() noexcept = 0;
+            //virtual  ObjectStack& getObjectStack() noexcept = 0;
         protected:
             virtual ~IParser() = default;
         };
@@ -88,105 +102,242 @@ namespace JSON {
         };
 
         template<typename ParserT>
-        class StatefulParser : public ISubParser{
+        class ParserTemplate : public ISubParser{
         public:
-            using state_ptr_t = ISubParser* (ParserT::*)(IParser& p);
-            
+            //using ParserStatePtr = typename ParserT::State *;
+            using state_ptr_t = ISubParser& (ParserT::*)(ISubParserState&,IParser&);
+
             class State : public ISubParserState {
             public:
-                State(IParser& p) : next_parser{ &std::get<ParserT>(p.getParsers()) } {}
-                ISubParser* getNextParser() override {
-                    return next_parser;
+                State(IParser& p, state_ptr_t state_function_ = ParserT::getInitState()) :
+                    state_function{ state_function_ }
+                     {}
+
+                ISubParser& getParser(IParser& p) override { 
+                    return std::get<ParserT>(p.getParsers()); 
                 }
-            private:
-                ISubParser* next_parser;
+                
+                IObjectPtr getObject() override {
+                    return IObjectPtr{nullptr};
+                }
+
+                state_ptr_t state_function;
+                
             };               
 
-            explicit StatefulParser(state_ptr_t init_state) : state(init_state){}
+            ParserTemplate() = default;
 
-            ISubParser* operator()(IParser& p) override {
-                return (static_cast<ParserT*>(this)->*state)(p);
+            ISubParser& operator()(IParser& p) override {
+                auto& s = static_cast<State&>(*p.getStateStack().top());
+                return (static_cast<ParserT*>(this)->*(s.state_function))(s,p);
             }
 
-        protected:
-            state_ptr_t state;
+            ISubParser& next_parser(IParser& p) noexcept {
+                return p.getStateStack().top()->getParser(p);
+            }
         };
 
-
-        ISubParser* check_start_symbol(IParser& IParser) {
+        ISubParser& CheckStartSymbol(IParser& IParser) {
             throw InvalidStartingSymbol();
         }
 
         template<typename SubParserT, typename... SubParsersT>
-        std::enable_if_t<std::is_pointer<decltype(std::declval<SubParserT>().get_starting_symbol())>::value, ISubParser*>
-            check_start_symbol(IParser& parser, SubParserT& subparser, SubParsersT&... subparsers) {
-            std::string syms = subparser.get_starting_symbol();
+        std::enable_if_t<
+            std::is_pointer<
+                decltype(std::declval<SubParserT>().getFirstSymbolSet())
+            >::value, ISubParser&
+        > CheckStartSymbol(IParser& parser, SubParserT& subparser, SubParsersT&... subparsers) {
+            std::string syms = subparser.getFirstSymbolSet();
             if (syms.find(parser.getCurrentChar()) == std::string::npos) 
-                return check_start_symbol(parser, subparsers...);
-            else
+                return CheckStartSymbol(parser, subparsers...);
+            else {
+                parser.getStateStack().push(CreateState<SubParserT>(parser));
                 return subparser(parser);
+            }
         }
 
         template<typename SubParserT, typename... SubParsersT>
-        std::enable_if_t<!std::is_pointer<decltype(std::declval<SubParserT>().get_starting_symbol())>::value, ISubParser*>
-            check_start_symbol(IParser& parser, SubParserT& subparser, SubParsersT&... subparsers) {
-            if (parser.getCurrentChar() != subparser.get_starting_symbol())
-                return check_start_symbol(parser,subparsers...);
-            else
+        std::enable_if_t<
+            !std::is_pointer<
+                decltype(std::declval<SubParserT>().getFirstSymbolSet())
+            >::value, ISubParser&
+        >CheckStartSymbol(IParser& parser, SubParserT& subparser, SubParsersT&... subparsers) {
+            if (parser.getCurrentChar() != subparser.getFirstSymbolSet())
+                return CheckStartSymbol(parser,subparsers...);
+            else {
+                parser.getStateStack().push(CreateState<SubParserT>(parser));
                 return subparser(parser);
+            }
         }
 
 
         template<typename... Parsers>
-        ISubParser* dispatch_first_symbol(IParser& p,std::tuple<Parsers...>& parsers) {
-            return check_start_symbol(p, std::get<Parsers>(parsers)...);
+        ISubParser& DispatchFirstSymbol(IParser& p,std::tuple<Parsers...>& parsers) {
+            return CheckStartSymbol(p, std::get<Parsers>(parsers)...);
         }
 
         template<typename JSONLiteral>
-        class LiteralParser : public StatefulParser<LiteralParser<JSONLiteral>> {
+        class LiteralParser : public ParserTemplate<LiteralParser<JSONLiteral>> {
         public:
-            LiteralParser() : 
-                StatefulParser<LiteralParser<JSONLiteral>>(&LiteralParser<JSONLiteral>::check), 
-                current_pos{}, 
-                literal_size{ strlen(getLiteral<JSONLiteral>()) }{}
-            static char get_starting_symbol() {
-                return getLiteral<JSONLiteral>()[0];
-            }
-        private:
-            size_t current_pos;
-            const size_t literal_size;
+            using BaseState = typename ParserTemplate<LiteralParser<JSONLiteral>>::State;
+            
+            struct State : public BaseState  {
+                State(IParser& p) : BaseState(p), current_pos{} {}
+                IObjectPtr getObject() override {
+                    return Create<JSONLiteral>();
+                }
+                size_t current_pos;
+            };
 
-            ISubParser* check(IParser& p) {
-                if (getLiteral<JSONLiteral>()[current_pos++] != p.getCurrentChar())
+            static char getFirstSymbolSet() {
+                return GetLiteral<JSONLiteral>()[0];
+            }
+            
+            static state_ptr_t getInitState() {
+                return &LiteralParser::check;
+            }
+
+        private:
+            ISubParser& check(ISubParserState& state, IParser& p) {
+                auto& s = static_cast<State&>(state);
+                const size_t literal_size = strlen(GetLiteral<JSONLiteral>());
+                if (GetLiteral<JSONLiteral>()[s.current_pos++] != p.getCurrentChar())
                     throw LiteralException();
-                if (current_pos == literal_size) {
-                    current_pos = 0;
-                    if (p.getClosureStack().empty()) {
-                        p.getObjects().emplace_back(Create<JSONLiteral>(getLiteral<JSONLiteral>()));
-                        return &std::get<WSParser>(p.getParsers());
-                    }
-                    else {
-                        p.getObjectStack().emplace(Create<JSONLiteral>(getLiteral<JSONLiteral>()));
-                        return p.getClosureStack().top()->select_parser(p);
-                    }
+                if (s.current_pos == literal_size) {
+                    p.getLastState() = std::move(p.getStateStack().top());
+                    p.getStateStack().pop();
+                    return next_parser(p);
                 }
                 else
-                    return this;
+                    return *this;
             }
 
         };
+        
 
-        class ObjectParser : public StatefulParser<ObjectParser> {
+        class WSParser : public ParserTemplate<WSParser> {
+        public:
+            struct State : public ParserTemplate<WSParser>::State {
+                using ParserTemplate<WSParser>::State::State;
+            };
+
+            static const char* getFirstSymbolSet() {
+                return " \t\n\r";
+            }
+
+            static state_ptr_t getInitState() {
+                return &WSParser::parseEmplaceAndDispatch;
+            }
+        private:
+            ISubParser& parseEmplaceAndDispatch(ISubParserState& state, IParser& p) {
+                auto& s = static_cast<State&>(state);
+                
+                if (p.getLastState())
+                    p.getObjects().emplace_back(
+                        std::move(p.getLastState()->getObject()));
+
+                if (IsWhitespace(p.getCurrentChar()))
+                    return *this;
+                else {
+                    return DispatchFirstSymbol(p, p.getParsers());
+                }
+            }
+        };
+        /*
+        class NumberParser : public ParserTemplate<NumberParser> {
+        public:
+            struct Exception : public std::exception {};
+
+            struct State : public ParserTemplate<NumberParser>::State {
+                using ParserTemplate<NumberParser>::State::State;
+                std::string number;
+            };
+
+            static const char* getFirstSymbolSet() {
+                return "-0123456789";
+            }
+
+            static state_ptr_t getInitState() {
+                return &NumberParser::start;
+            }
+
+
+        private:
+
+            ISubParser& start(ISubParserState& state, IParser& p) {
+
+                char c = p.getCurrentChar();
+                if (c == '0') state = &NumberParser::starting_zero;
+                else if (std::isdigit(c)) state = &NumberParser::integer_part;
+                else if (c == '-')  state = &NumberParser::minus;
+                else throw Exception();
+                token.push_back(c);
+                return this;
+            }
+
+            ISubParser* minus(IParser& p) {
+                char c = p.getCurrentChar();
+                if (c == '0') state = &NumberParser::starting_zero;
+                else if (std::isdigit(c)) state = &NumberParser::integer_part;
+                else throw Exception();
+                token.push_back(c);
+                return this;
+            }
+
+            ISubParser& starting_zero(ISubParserState& state, IParser& p) {
+                char c = p.getCurrentChar();
+                if (c == '.') state = &NumberParser::fraction_part;
+                else if (IsWhitespace(c)) return end(p);
+                else throw Exception();
+                token.push_back(c);
+                return this;
+            }
+
+            ISubParser* integer_part(IParser& p) {
+                char c = p.getCurrentChar();
+                if (std::isdigit(c)) state = &NumberParser::integer_part;
+                else if (c == '.') state = &NumberParser::fraction_part;
+                else if (c == 'e' || c == 'E') state = &NumberParser::exponent_part;
+                else if (IsWhitespace(c)) return end(p);
+                else throw Exception();
+                token.push_back(c);
+                return this;
+            }
+
+            ISubParser* fraction_part(IParser& p) {
+                return this;
+            }
+
+            ISubParser* exponent_part(IParser& p) {
+                return this;
+            }
+
+            ISubParser* end(IParser& p) {
+                state = &NumberParser::init_state;
+                if (p.getClosureStack().empty()) {
+                    p.getObjects().emplace_back(Create<Number>(std::move(token)));
+                }
+                else {
+
+                }
+                //TODO: get next state based on closure type
+                return this;
+            }
+
+        };
+        */
+        /*
+        class ObjectParser : public ParserTemplate<ObjectParser> {
         public:
 
-            ObjectParser() : StatefulParser<ObjectParser>(&ObjectParser::init) {}
+            ObjectParser() : ParserTemplate<ObjectParser>(&ObjectParser::init) {}
 
-            struct State : public StatefulParser<ObjectParser>::State {
+            struct State : public ParserTemplate<ObjectParser>::State {
                 std::string name;
                 IObjectPtr object;
             };
 
-            static char get_starting_symbol() {
+            static char getFirstSymbolSet() {
                 return begin_object;
             }
 
@@ -197,28 +348,33 @@ namespace JSON {
 
         };
 
-        class ArrayParser : public ISubParser {
+        class ArrayParser : public ParserTemplate<ArrayParser> {
         public:
 
-            ISubParser* operator()(IParser& p) override {
-                return this;
-            }
+            struct State : public ParserTemplate<ObjectParser>::State {};
 
-            static char get_starting_symbol() {
+            static char getFirstSymbolSet() {
                 return begin_array;
             }
 
+            static state_ptr_t getInitState() {
+                return &ArrayParser::start;
+            }
+
         private:
+            ISubParser* start(State& s, IParser& p) {
+                return this;
+            }
         };
 
-        class NumberParser : public StatefulParser<NumberParser> {
+        class NumberParser : public ParserTemplate<NumberParser> {
         public:
             //constexpr static auto starting_symbols = utils::make_array('-','0','1','2','3','4','5','6','7','8','9' );
             struct Exception : public std::exception {};
 
-            NumberParser() : StatefulParser<NumberParser>(&NumberParser::init_state) {}
+            NumberParser() : ParserTemplate<NumberParser>(&NumberParser::init_state) {}
 
-            static const char* get_starting_symbol() {
+            static const char* getFirstSymbolSet() {
                 return "-0123456789";
             }
 
@@ -247,7 +403,7 @@ namespace JSON {
             ISubParser* starting_zero(IParser& p) {
                 char c = p.getCurrentChar();
                 if (c == '.') state = &NumberParser::fraction_part;
-                else if (is_ws(c)) return end(p);
+                else if (IsWhitespace(c)) return end(p);
                 else throw Exception();
                 token.push_back(c);
                 return this;
@@ -258,7 +414,7 @@ namespace JSON {
                 if (std::isdigit(c)) state = &NumberParser::integer_part;
                 else if (c == '.') state = &NumberParser::fraction_part;
                 else if (c == 'e' || c == 'E') state = &NumberParser::exponent_part;
-                else if (is_ws(c)) return end(p);
+                else if (IsWhitespace(c)) return end(p);
                 else throw Exception();
                 token.push_back(c);
                 return this;
@@ -295,29 +451,14 @@ namespace JSON {
                 return this;
             }
 
-            static char get_starting_symbol() {
+            static char getFirstSymbolSet() {
                 return quotation_mark;
             }
         private:
         };
+        */
 
-        class WSParser : public ISubParser {
-        public:
-            ISubParser* operator()(IParser& p) override {
-                if (is_ws(p.getCurrentChar()))
-                    return this;
-                else {
-                    return dispatch_first_symbol(p,p.getParsers());
-                }
-            }
-            
-            static const char* get_starting_symbol() {
-                return " \t\n\r";
-            }
-
-        private:
-        };
-
+        /*
         struct ClosureObject : public Object, public IClosureObject {
             ISubParser* select_parser(IParser& p) override {
                 return &(std::get<ObjectParser>(p.getParsers()));
@@ -329,6 +470,7 @@ namespace JSON {
                 return &(std::get<ArrayParser>(p.getParsers()));
             }
         };
+        */
 
     }
 
@@ -337,7 +479,12 @@ namespace JSON {
 
         using obj_container_t = impl::ObjContainer;
 
-        Parser() : current_char{}, parsers{}, current_parser(&std::get<impl::WSParser>(parsers)){}
+        Parser() : current_char{} 
+        {
+            stateStack.push(
+                impl::ISubParserStatePtr(
+                    impl::CreateState<impl::WSParser>(*this)));
+        }
 
         impl::ObjContainer retrieveObjects() {
             if (!isRetrievable()) throw impl::ParsingIncomplete();
@@ -345,12 +492,12 @@ namespace JSON {
         }
 
         bool isRetrievable()const noexcept {
-            return object_stack.empty() && closure_stack.empty();
+            return stateStack.size() == 1;
         }
 
         void operator()(char c) {
             current_char = c;
-            current_parser = (*current_parser)(*this);
+            stateStack.top()->getParser(*this)(*this);
         }
 
         Parser(const Parser&) = delete;
@@ -359,37 +506,43 @@ namespace JSON {
         Parser& operator=(Parser&&) = delete;
 
     private:
-        char getCurrentChar() const noexcept override {
-            return current_char;
-        }
+        char getCurrentChar() const noexcept override { return current_char; }
 
-        impl::ObjContainer& getObjects() noexcept override {
-            return objects;
+        impl::ObjContainer& getObjects() noexcept override { return objects; }
+
+        impl::ParserTuple& getParsers() noexcept override { return parsers; }
+        
+        impl::ParserStateStack& getStateStack() noexcept override {
+            return stateStack;
         }
+        
+        impl::ISubParserStatePtr& getLastState() noexcept override {
+            return lastState;
+        }
+        /*
 
         impl::ClosureStack& getClosureStack() noexcept override {
             return closure_stack;
         }
 
-        impl::ParserTuple& getParsers() noexcept override {
-            return parsers;
-        }
+
 
         impl::ObjectStack& getObjectStack() noexcept override {
             return object_stack;
         }
+        */
 
-        impl::ParserStateStack& getParserStateStack() noexcept override {
-            return state_stack;
-        }
+
 
         char current_char;
         impl::ObjContainer objects;
-        impl::ObjectStack object_stack;
-        impl::ClosureStack closure_stack;
         impl::ParserTuple parsers;
-        impl::ISubParser* current_parser;
-        impl::ParserStateStack state_stack;
+        impl::ParserStateStack stateStack;
+        impl::ISubParserStatePtr lastState;
+
+        //impl::ObjectStack object_stack;
+        //impl::ClosureStack closure_stack;
+        //impl::ISubParser* current_parser;
     };
     
     template<typename ForwardIterator>
