@@ -20,6 +20,7 @@ namespace JSON {
         
         struct IParser;
         struct ISubParser;
+        struct ISubParserState;
         struct IClosureObject;
         class WSParser;
         template<typename JSONLiteral>
@@ -32,12 +33,13 @@ namespace JSON {
         class NumberParser;
         class StringParser;
         
-        using parsers_t = std::tuple<WSParser, NullParser, TrueParser, FalseParser, ObjectParser, ArrayParser, NumberParser, StringParser>;
+        using ParserTuple = std::tuple<WSParser, NullParser, TrueParser, FalseParser, ObjectParser, ArrayParser, NumberParser, StringParser>;
         
         using IClosureObjectPtr = std::unique_ptr<IClosureObject>;
-        using obj_container_t = std::vector<IObjectPtr>;
-        using closure_stack_t = std::stack<IClosureObjectPtr>;
-        using object_stack_t = std::stack<IObjectPtr>;
+        using ObjContainer = std::vector<IObjectPtr>;
+        using ClosureStack = std::stack<IClosureObjectPtr>;
+        using ObjectStack = std::stack<IObjectPtr>;
+        using ParserStateStack = std::stack<std::unique_ptr<ISubParserState>>;
 
         struct Exception : public std::exception {};
         struct InvalidStartingSymbol : public Exception {};
@@ -63,13 +65,19 @@ namespace JSON {
             virtual ~ISubParser() = default;
         };
 
+        struct ISubParserState {
+            virtual ISubParser* getNextParser() = 0;
+            virtual ~ISubParserState() = default;
+        };
+
         struct IParser {
             struct Exception : public std::exception {};
             virtual char getCurrentChar() const noexcept = 0;
-            virtual obj_container_t& getObjects() noexcept = 0;
-            virtual closure_stack_t& getClosureStack() noexcept = 0;
-            virtual  parsers_t& getParsers() noexcept = 0;
-            virtual  object_stack_t& getObjectStack() noexcept = 0;
+            virtual ObjContainer& getObjects() noexcept = 0;
+            virtual ClosureStack& getClosureStack() noexcept = 0;
+            virtual  ParserTuple& getParsers() noexcept = 0;
+            virtual  ObjectStack& getObjectStack() noexcept = 0;
+            virtual ParserStateStack& getParserStateStack() noexcept = 0;
         protected:
             virtual ~IParser() = default;
         };
@@ -82,17 +90,26 @@ namespace JSON {
         template<typename ParserT>
         class StatefulParser : public ISubParser{
         public:
-           
-            using state_t = ISubParser* (ParserT::*)(IParser& p);
+            using state_ptr_t = ISubParser* (ParserT::*)(IParser& p);
+            
+            class State : public ISubParserState {
+            public:
+                State(IParser& p) : next_parser{ &std::get<ParserT>(p.getParsers()) } {}
+                ISubParser* getNextParser() override {
+                    return next_parser;
+                }
+            private:
+                ISubParser* next_parser;
+            };               
 
-            explicit StatefulParser(state_t init_state) : state(init_state){}
+            explicit StatefulParser(state_ptr_t init_state) : state(init_state){}
 
             ISubParser* operator()(IParser& p) override {
                 return (static_cast<ParserT*>(this)->*state)(p);
             }
 
         protected:
-            state_t state;
+            state_ptr_t state;
         };
 
 
@@ -159,22 +176,29 @@ namespace JSON {
 
         };
 
-        class ObjectParser : public ISubParser {
+        class ObjectParser : public StatefulParser<ObjectParser> {
         public:
-            ISubParser* operator()(IParser& p) override {
-                return this;
-            }
+
+            ObjectParser() : StatefulParser<ObjectParser>(&ObjectParser::init) {}
+
+            struct State : public StatefulParser<ObjectParser>::State {
+                std::string name;
+                IObjectPtr object;
+            };
 
             static char get_starting_symbol() {
                 return begin_object;
             }
 
         private:
+            ISubParser* init(IParser& p) {
+                return this;
+            }
+
         };
 
         class ArrayParser : public ISubParser {
         public:
-            //constexpr static auto starting_symbols = utils::make_array('[');
 
             ISubParser* operator()(IParser& p) override {
                 return this;
@@ -311,11 +335,11 @@ namespace JSON {
     class Parser : public impl::IParser {
     public:
 
-        using obj_container_t = impl::obj_container_t;
+        using obj_container_t = impl::ObjContainer;
 
         Parser() : current_char{}, parsers{}, current_parser(&std::get<impl::WSParser>(parsers)){}
 
-        impl::obj_container_t retrieveObjects() {
+        impl::ObjContainer retrieveObjects() {
             if (!isRetrievable()) throw impl::ParsingIncomplete();
             return std::move(objects);
         }
@@ -339,28 +363,33 @@ namespace JSON {
             return current_char;
         }
 
-        impl::obj_container_t& getObjects() noexcept override {
+        impl::ObjContainer& getObjects() noexcept override {
             return objects;
         }
 
-        impl::closure_stack_t& getClosureStack() noexcept override {
+        impl::ClosureStack& getClosureStack() noexcept override {
             return closure_stack;
         }
 
-        impl::parsers_t& getParsers() noexcept override {
+        impl::ParserTuple& getParsers() noexcept override {
             return parsers;
         }
 
-        impl::object_stack_t& getObjectStack() noexcept override {
+        impl::ObjectStack& getObjectStack() noexcept override {
             return object_stack;
         }
 
+        impl::ParserStateStack& getParserStateStack() noexcept override {
+            return state_stack;
+        }
+
         char current_char;
-        impl::obj_container_t objects;
-        impl::object_stack_t object_stack;
-        impl::closure_stack_t closure_stack;
-        impl::parsers_t parsers;
+        impl::ObjContainer objects;
+        impl::ObjectStack object_stack;
+        impl::ClosureStack closure_stack;
+        impl::ParserTuple parsers;
         impl::ISubParser* current_parser;
+        impl::ParserStateStack state_stack;
     };
     
     template<typename ForwardIterator>
