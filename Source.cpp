@@ -43,7 +43,7 @@ int main(int, char**) try{
     {
         "menu": {
             "id": "file",
-            "value": "File",
+            "value": 3,
             "popup": {
                 "menuitem": "CreateNewDoc()",
                 "name": "Create new document..."

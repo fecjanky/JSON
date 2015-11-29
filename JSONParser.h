@@ -192,7 +192,7 @@ namespace JSON {
         };
 
         template<typename JSONT>
-        struct Finish {
+        struct Return {
             template<typename ParserT, typename StateT>
             ISubParser& operator()(
                 ParserT& current_parser, StateT& s, IParser&p) {
@@ -201,7 +201,18 @@ namespace JSON {
             }
         };
 
-        struct NoOpFinish {
+        template<typename JSONT>
+        struct CallBack {
+            template<typename ParserT, typename StateT>
+            ISubParser& operator()(
+                ParserT& current_parser, StateT& s, IParser&p) {
+                s.object = JSON::Create<JSONT>(std::move(s.token));
+                return current_parser.nextParser(p)(p);
+            }
+        };
+
+
+        struct NoOpReturn {
             template<typename ParserT, typename StateT>
             ISubParser& operator()(
                 ParserT& current_parser, StateT& s, IParser&p) {
@@ -484,7 +495,7 @@ namespace JSON {
         inline ISubParser& NumberParser::startingZero(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
                 std::make_tuple(IsLiteral<'.'>{}, Store{}, &NumberParser::fractionPartStart),
-                std::make_tuple(IsWhitespace, Finish<JSON::Number>{}, nullptr)
+                std::make_tuple(Others{}, CallBack<JSON::Number>{}, nullptr)
                 );
         }
 
@@ -493,7 +504,7 @@ namespace JSON {
                 std::make_tuple(std::isdigit, Store{}, &NumberParser::integerPart),
                 std::make_tuple(IsLiteral<'.'>{}, Store{}, &NumberParser::fractionPartStart),
                 std::make_tuple(IsLiteral<'e', 'E'>{}, Store{}, &NumberParser::exponentPartStart),
-                std::make_tuple(IsWhitespace, Finish<JSON::Number>{}, nullptr)
+                std::make_tuple(Others{}, CallBack<JSON::Number>{}, nullptr)
                 );
         }
 
@@ -505,9 +516,9 @@ namespace JSON {
 
         inline ISubParser& NumberParser::fractionPart(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
-                std::make_tuple(IsWhitespace, Finish<JSON::Number>{}, nullptr),
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::fractionPart),
                 std::make_tuple(IsLiteral<'e', 'E'>{}, Store{}, &NumberParser::exponentPartStart),
-                std::make_tuple(std::isdigit, Store{}, &NumberParser::fractionPart)
+                std::make_tuple(Others{}, CallBack<JSON::Number>{}, nullptr)
                 );
         }
 
@@ -526,8 +537,8 @@ namespace JSON {
 
         inline ISubParser& NumberParser::exponentPart(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
-                std::make_tuple(IsWhitespace, Finish<JSON::Number>{}, nullptr),
-                std::make_tuple(std::isdigit, Store{}, &NumberParser::exponentPart)
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::exponentPart),
+                std::make_tuple(Others{}, CallBack<JSON::Number>{}, nullptr)
                 );
         }
 
@@ -557,7 +568,7 @@ namespace JSON {
         inline ISubParser& ObjectParser::parseKey(ISubParserState& s, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, s), p,
                 std::make_tuple(IsWhitespace, NoOp{}, &ObjectParser::parseKey),
-                std::make_tuple(IsLiteral<end_object>{}, NoOpFinish{},nullptr),
+                std::make_tuple(IsLiteral<end_object>{}, NoOpReturn{},nullptr),
                 std::make_tuple(IsLiteral<JSON::quotation_mark>{}, 
                     Call<StringParser>{}, &ObjectParser::retrieveKey)
                 );
@@ -597,7 +608,7 @@ namespace JSON {
         ISubParser& ObjectParser::nextMember(ISubParserState& s, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, s), p,
                 std::make_tuple(IsWhitespace, NoOp{}, &ObjectParser::nextMember),
-                std::make_tuple(IsLiteral<end_object>{}, NoOpFinish{}, nullptr),
+                std::make_tuple(IsLiteral<end_object>{}, NoOpReturn{}, nullptr),
                 std::make_tuple(IsLiteral<value_separator>{}, NoOp{}, &ObjectParser::parseKey)
                 );
         }
@@ -648,7 +659,7 @@ namespace JSON {
 
         inline ISubParser& StringParser::parseChar(ISubParserState& s, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, s), p,
-                std::make_tuple(IsLiteral <JSON::quotation_mark>{}, Finish<JSON::String>{}, nullptr),
+                std::make_tuple(IsLiteral <JSON::quotation_mark>{}, Return<JSON::String>{}, nullptr),
                 std::make_tuple(IsLiteral <JSON::string_escape>{}, NoOp{}, &StringParser::parseEscapeChar),
                 std::make_tuple([](char c) -> bool{ 
                 return c == 0x20 || c == 0x21 || (c >= 0x23 && c <= 0x5b) ||
