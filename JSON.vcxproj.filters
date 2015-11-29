@@ -28,6 +28,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram.cd" />
+    <None Include="JSONParser.cd" />
+    <None Include="JSON.cd" />
   </ItemGroup>
 </Project>

@@ -98,12 +98,12 @@ namespace JSON {
     using namespace RFC7159;
 
     struct Exception : public std::exception {};
-    struct AttributeMissing : Exception {};
-    struct TypeError : public Exception {};
-    struct AggregateTypeError : public Exception {};
-    struct ValueError : public Exception {};
-    struct OutOfRange : public Exception {};
-    struct AttributeNotUnique : public Exception {};
+    struct AttributeMissing : JSON::Exception {};
+    struct TypeError : public JSON::Exception {};
+    struct AggregateTypeError : public JSON::Exception {};
+    struct ValueError : public JSON::Exception {};
+    struct OutOfRange : public JSON::Exception {};
+    struct AttributeNotUnique : public JSON::Exception {};
 
     // TODO: introduce Mutable and Immutable objects
 
@@ -301,8 +301,9 @@ namespace JSON {
             void validate(const std::string& rep) const {
                 T temp;
                 std::stringstream ss(rep);
+                ss << std::scientific;
                 ss >> temp;
-                if (std::to_string(temp).find(rep) != 0)
+                if (ss.bad() || ss.fail() || ss.peek() != EOF)
                     throw ValueError();
             }
         };
