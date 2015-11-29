@@ -36,8 +36,9 @@ int main(int, char**) try{
         null false true -0.145e11
     )--" };
 
-
-    auto objs = JSON::parse(json_text2.begin(), json_text2.end());
+    {
+        auto objs = JSON::parse(json_text2.begin(), json_text2.end());
+    }
     return 0;
 }
 catch (const std::exception& e) {
