@@ -42,7 +42,8 @@ namespace JSON {
             TrueParser, 
             FalseParser,
             NumberParser,
-            ObjectParser
+            ObjectParser,
+            StringParser
         >;
         
         using ISubParserStatePtr = std::unique_ptr<ISubParserState>;
@@ -255,7 +256,7 @@ namespace JSON {
             
         private:
 
-            struct NoOp {
+            struct Store {
                 ISubParser& operator()(NumberParser& current_parser, State& s, IParser&p);
             };
 
@@ -297,14 +298,13 @@ namespace JSON {
             ISubParser& parseValue(ISubParserState& s, IParser& p);
         };
 
-        class StringParser : public ParserTemplate<ObjectParser> {
+        class StringParser : public ParserTemplate<StringParser> {
         public:
             struct Exception : impl::Exception {};
             
             struct State : public ParserTemplate<StringParser>::State {
-                explicit State(IParser& p);
-                IObjectPtr getObject() override;
-                
+                using ParserTemplate<StringParser>::State::State;
+                IObjectPtr getObject() override;                
                 std::string token;
             };
 
@@ -312,8 +312,22 @@ namespace JSON {
             static StatePtr getInitState();
 
         private:
+            struct Store {
+                ISubParser& operator()(StringParser& current_parser, State& s, IParser&p);
+            };
+
+            struct NoOp {
+                ISubParser& operator()(StringParser& current_parser, State& s, IParser&p);
+            };
+
+            struct Finished {
+                ISubParser& operator()(StringParser& current_parser, State& s, IParser& p);
+            };
+
+            ISubParser& start(ISubParserState& s, IParser& p);
             ISubParser& parseChar(ISubParserState& s, IParser& p);
             ISubParser& parseEscapeChar(ISubParserState& s, IParser& p);
+            ISubParser& parseUnicodeEscapeChar(ISubParserState& s, IParser& p);
         };
 
         class WSParser : public ParserTemplate<WSParser> {
@@ -408,7 +422,7 @@ namespace JSON {
             return &NumberParser::start;
         }
 
-        inline ISubParser& NumberParser::NoOp::operator()(
+        inline ISubParser& NumberParser::Store::operator()(
             NumberParser& current_parser, State& s, IParser&p) {
             s.number.push_back(p.getCurrentChar());
             return current_parser;
@@ -422,66 +436,66 @@ namespace JSON {
 
         inline ISubParser& NumberParser::start(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
-                std::make_tuple(IsLiteral<'0'>{}, NoOp{}, &NumberParser::startingZero),
-                std::make_tuple(std::isdigit, NoOp{}, &NumberParser::integerPart),
-                std::make_tuple(IsLiteral<'-'> {}, NoOp{}, &NumberParser::minus)
+                std::make_tuple(IsLiteral<'0'>{}, Store{}, &NumberParser::startingZero),
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::integerPart),
+                std::make_tuple(IsLiteral<'-'> {}, Store{}, &NumberParser::minus)
                 );
         }
 
         inline ISubParser& NumberParser::minus(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
-                std::make_tuple(IsLiteral<'0'>{}, NoOp{}, &NumberParser::startingZero),
-                std::make_tuple(std::isdigit, NoOp{}, &NumberParser::integerPart)
+                std::make_tuple(IsLiteral<'0'>{}, Store{}, &NumberParser::startingZero),
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::integerPart)
                 );
         }
 
         inline ISubParser& NumberParser::startingZero(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
-                std::make_tuple(IsLiteral<'.'>{}, NoOp{}, &NumberParser::fractionPartStart),
+                std::make_tuple(IsLiteral<'.'>{}, Store{}, &NumberParser::fractionPartStart),
                 std::make_tuple(IsWhitespace, Finished{}, nullptr)
                 );
         }
 
         inline ISubParser& NumberParser::integerPart(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
-                std::make_tuple(std::isdigit, NoOp{}, &NumberParser::integerPart),
-                std::make_tuple(IsLiteral<'.'>{}, NoOp{}, &NumberParser::fractionPartStart),
-                std::make_tuple(IsLiteral<'e', 'E'>{}, NoOp{}, &NumberParser::exponentPartStart),
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::integerPart),
+                std::make_tuple(IsLiteral<'.'>{}, Store{}, &NumberParser::fractionPartStart),
+                std::make_tuple(IsLiteral<'e', 'E'>{}, Store{}, &NumberParser::exponentPartStart),
                 std::make_tuple(IsWhitespace, Finished{}, nullptr)
                 );
         }
 
         inline ISubParser& NumberParser::fractionPartStart(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
-                std::make_tuple(std::isdigit, NoOp{}, &NumberParser::fractionPart)
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::fractionPart)
                 );
         }
 
         inline ISubParser& NumberParser::fractionPart(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
                 std::make_tuple(IsWhitespace, Finished{}, nullptr),
-                std::make_tuple(IsLiteral<'e', 'E'>{}, NoOp{}, &NumberParser::exponentPartStart),
-                std::make_tuple(std::isdigit, NoOp{}, &NumberParser::fractionPart)
+                std::make_tuple(IsLiteral<'e', 'E'>{}, Store{}, &NumberParser::exponentPartStart),
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::fractionPart)
                 );
         }
 
         inline ISubParser& NumberParser::exponentPartStart(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
-                std::make_tuple(IsLiteral<'-', '+'>{}, NoOp{}, &NumberParser::exponentPartStartSigned),
-                std::make_tuple(std::isdigit, NoOp{}, &NumberParser::exponentPart)
+                std::make_tuple(IsLiteral<'-', '+'>{}, Store{}, &NumberParser::exponentPartStartSigned),
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::exponentPart)
                 );
         }
 
         inline ISubParser& NumberParser::exponentPartStartSigned(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
-                std::make_tuple(std::isdigit, NoOp{}, &NumberParser::exponentPart)
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::exponentPart)
                 );
         }
 
         inline ISubParser& NumberParser::exponentPart(ISubParserState& state, IParser& p) {
             return StateTransition(*this, ISubParserState::Cast(this, state), p,
                 std::make_tuple(IsWhitespace, Finished{}, nullptr),
-                std::make_tuple(std::isdigit, NoOp{}, &NumberParser::exponentPart)
+                std::make_tuple(std::isdigit, Store{}, &NumberParser::exponentPart)
                 );
         }
 
@@ -537,6 +551,70 @@ namespace JSON {
             else {
                 return DispatchFirstSymbol(p, p.getParsers());
             }
+        }
+
+        inline IObjectPtr StringParser::State::getObject() {
+            return JSON::Create<JSON::String>(std::move(token));
+        }
+
+        inline char StringParser::getFirstSymbolSet() {
+            return JSON::quotation_mark;
+        }
+
+        inline StringParser::StatePtr StringParser::getInitState() {
+            return &StringParser::start;
+        }
+
+        
+        inline ISubParser& StringParser::Store::operator()(
+            StringParser& current_parser, State& s, IParser&p) {
+            s.token.push_back(p.getCurrentChar());
+            return current_parser;
+        }
+
+        inline ISubParser& StringParser::Finished::operator()(
+            StringParser& current_parser, State& s, IParser&p) {
+            return current_parser.nextParser(p);
+        }
+
+        inline ISubParser& StringParser::NoOp::operator()(
+            StringParser& current_parser, State& s, IParser&p) {
+            return current_parser;
+        }
+
+        ISubParser& StringParser::start(ISubParserState& s, IParser& p) {
+            return StateTransition(*this, ISubParserState::Cast(this, s), p,
+                std::make_tuple(IsLiteral <JSON::quotation_mark>{}, NoOp{}, &StringParser::parseChar)
+                );
+        }
+
+        inline ISubParser& StringParser::parseChar(ISubParserState& s, IParser& p) {
+            return StateTransition(*this, ISubParserState::Cast(this, s), p,
+                std::make_tuple(IsLiteral <JSON::quotation_mark>{}, Finished{}, nullptr),
+                std::make_tuple(IsLiteral <JSON::string_escape>{}, NoOp{}, &StringParser::parseEscapeChar),
+                std::make_tuple([](char c) -> bool{ 
+                return c == 0x20 || c == 0x21 || (c >= 0x23 && c <= 0x5b) ||
+                    (c >= 0x5D && c <= 0x10FFFF);
+                },Store{}, &StringParser::parseChar)
+                );
+        }
+
+        inline ISubParser& StringParser::parseEscapeChar(ISubParserState& s, IParser& p) {
+            return StateTransition(*this, ISubParserState::Cast(this, s), p,
+                std::make_tuple(IsLiteral <JSON::string_unicode_escape>{}, NoOp{}, 
+                    &StringParser::parseUnicodeEscapeChar),
+                std::make_tuple([](char c) -> bool {
+                    for(auto e : JSON::string_escapes) 
+                        if(e == c)return true;
+                    return false;
+                }, Store{}, &StringParser::parseChar)
+                );
+        }
+
+        inline ISubParser& StringParser::parseUnicodeEscapeChar(ISubParserState& s, IParser& p) {
+            // throws exception!
+            // TODO: implement parsing of Unicode escapes
+            return StateTransition(*this, ISubParserState::Cast(this, s), p);
         }
 
     }

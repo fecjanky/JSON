@@ -85,8 +85,22 @@ namespace JSON {
                 0x20, //  Space
                 0x09, //  Horizontal tab
                 0x0A, //  Line feed or New line
-                0x0D, //  Carriage return
+                0x0D  //  Carriage return
         };
+        constexpr char string_escape = 0x5c;
+        constexpr char string_unicode_escape = 0x75;
+
+        constexpr char string_escapes[] = {
+            0x22 , // "    quotation mark  U+0022
+            0x5C , // \    reverse solidus U+005C
+            0x2F , // /    solidus         U+002F
+            0x62 , // b    backspace       U+0008
+            0x66 , // f    form feed       U+000C
+            0x6E , // n    line feed       U+000A
+            0x72 , // r    carriage return U+000D
+            0x74  // t    tab             U+0009
+        };
+
         constexpr char  value_false[] = "false"; //false
         constexpr char  value_true[] = "true"; //true
         constexpr char  value_null[] = "null"; //null

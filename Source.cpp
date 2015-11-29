@@ -31,10 +31,10 @@ int main(int, char**) try{
         }
     )--"};
 
+    //null false true -0.145e11 
     std::string json_text2
-    { R"--(
-        null false true -0.145e11
-    )--" };
+     
+    { R"--( "jdbc:microsoft:sqlserver://LOCALHOST:1433;DatabaseName=goon"    )--" };
 
     {
         auto objs = JSON::parse(json_text2.begin(), json_text2.end());
