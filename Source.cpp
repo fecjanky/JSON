@@ -33,11 +33,28 @@ int main(int, char**) try{
 
     //null false true -0.145e11 
     std::string json_text2
-     
-    { R"--( "jdbc:microsoft:sqlserver://LOCALHOST:1433;DatabaseName=goon"    )--" };
+    { R"--( 
+    null false true -0.145e11
+    "jdbc:microsoft:sqlserver://LOCALHOST:1433;DatabaseName=goon"    
+    )--" };
+    
+    std::string json_text3
+    { R"--( 
+    {
+        "menu": {
+            "id": "file",
+            "value": "File",
+            "popup": {
+                "menuitem": "CreateNewDoc()",
+                "name": "Create new document..."
+            }
+        }
+    }    
+)--" };
 
     {
-        auto objs = JSON::parse(json_text2.begin(), json_text2.end());
+        auto objs = JSON::parse(json_text3.begin(), json_text3.end());
+        std::string s = (*objs[0])["menu"]["popup"]["name"];
     }
     return 0;
 }
