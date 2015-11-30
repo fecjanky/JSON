@@ -12,7 +12,8 @@
 
 #include "JSON.h"
 
-
+// TODO: Add Allocator support for parsers
+// TODO: Add Parsing Startegy (Mutable, Immutable)
 namespace JSON {
     
     using ObjContainer = std::vector<IObjectPtr>;
@@ -38,12 +39,13 @@ namespace JSON {
         
         using ParserTuple = std::tuple<
             WSParser, 
-            NullParser, 
+            ObjectParser,
+            ArrayParser,
+            StringParser,
+            NumberParser,
             TrueParser, 
             FalseParser,
-            NumberParser,
-            ObjectParser,
-            StringParser
+            NullParser            
         >;
         
         using ISubParserStatePtr = std::unique_ptr<ISubParserState>;
@@ -364,6 +366,29 @@ namespace JSON {
             ISubParser& nextMember(ISubParserState& s, IParser& p);
         };
 
+        class ArrayParser : public ParserTemplate<ArrayParser> {
+        public:
+
+            struct Exception : impl::Exception {};
+
+            struct State : public ParserTemplate<ArrayParser>::State {
+                explicit State(IParser& p);
+                IObjectPtr getObject() override;
+
+                IObjectPtr object;
+            };
+
+            static char getFirstSymbolSet();
+            static StatePtr getInitState();
+
+        private:
+            ISubParser& start(ISubParserState& s, IParser& p);
+            ISubParser& parseValue(ISubParserState& s, IParser& p);
+            ISubParser& retrieveValue(ISubParserState& s, IParser& p);
+            ISubParser& nextMember(ISubParserState& s, IParser& p);
+        };
+
+
         class StringParser : public ParserTemplate<StringParser> {
         public:
             struct Exception : impl::Exception {};
@@ -610,6 +635,55 @@ namespace JSON {
                 std::make_tuple(IsWhitespace, NoOp{}, &ObjectParser::nextMember),
                 std::make_tuple(IsLiteral<end_object>{}, NoOpReturn{}, nullptr),
                 std::make_tuple(IsLiteral<value_separator>{}, NoOp{}, &ObjectParser::parseKey)
+                );
+        }
+
+        inline ArrayParser::State::State(IParser& p) :
+            ParserTemplate<ArrayParser>::State(p),
+            object{ JSON::Create<Array>() }
+        {}
+
+        inline IObjectPtr ArrayParser::State::getObject() {
+            return std::move(object);
+        }
+
+        inline char ArrayParser::getFirstSymbolSet() {
+            return begin_array;
+        }
+
+        inline ArrayParser::StatePtr ArrayParser::getInitState() {
+            return &ArrayParser::start;
+        }
+
+        inline ISubParser& ArrayParser::start(ISubParserState& s, IParser& p) {
+            return StateTransition(*this, ISubParserState::Cast(this, s), p,
+                std::make_tuple(IsLiteral<JSON::begin_array>{}, NoOp{}, &ArrayParser::parseValue)
+                );
+        }
+
+
+        inline ISubParser& ArrayParser::parseValue(ISubParserState& s, IParser& p) {
+            return StateTransition(*this, ISubParserState::Cast(this, s), p,
+                std::make_tuple(IsWhitespace, NoOp{}, &ArrayParser::parseValue),
+                std::make_tuple(Others{}, Dispatch{}, &ArrayParser::retrieveValue)
+                );
+        }
+
+        inline ISubParser& ArrayParser::retrieveValue(ISubParserState& s, IParser& p) {
+            auto& state = ISubParserState::Cast(this, s);
+            auto& currentObject = static_cast<Array&>(*state.object);
+
+            currentObject.emplace(
+                std::move(p.getLastState()->getObject()));
+
+            return nextMember(s, p);
+        }
+
+        ISubParser& ArrayParser::nextMember(ISubParserState& s, IParser& p) {
+            return StateTransition(*this, ISubParserState::Cast(this, s), p,
+                std::make_tuple(IsWhitespace, NoOp{}, &ArrayParser::nextMember),
+                std::make_tuple(IsLiteral<end_array>{}, NoOpReturn{}, nullptr),
+                std::make_tuple(IsLiteral<value_separator>{}, NoOp{}, &ArrayParser::parseValue)
                 );
         }
 

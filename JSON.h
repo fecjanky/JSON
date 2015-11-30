@@ -13,67 +13,14 @@
 #include <iomanip>
 #include <iostream>
 #include <cstddef>
-#include <stack>
 #include <functional>
-#include <array>
-#include <tuple>
+#include <algorithm>
 
-/*
-#if __cplusplus  < 201402L
-namespace std{
-    template<bool Val,typename T = void>
-    using enable_if_t = typename std::enable_if<Val,T>::type;
-
-    template<typename T>
-    using decay_t = typename std::decay<T>::type;
-}
-#endif
-*/
-
+// TODO: Mutable and Immutable objects
+// TODO: template objects, template param Char (for wchar_t and wstring support)
 namespace JSON {
 
-    namespace utils {
-        template<typename Arg,typename... Args>
-        constexpr std::array<Arg, sizeof...(Args)+1> make_array(Arg a, Args... args) {
-            return std::array<Arg, sizeof...(Args)+1>{a, args...};
-        }
-    }
-
     namespace RFC7159 {
-
-        // JSON grammar
-        // ============
-        // JSON-text = ws value ws
-        // value = false / null / true / object / array / number / string
-        // object = begin - object[member *(value - separator member)]
-        //    end - object
-        // member = string name - separator value
-        // array = begin-array [ value *( value-separator value ) ] end-array
-        // number = [ minus ] int [ frac ] [ exp ]
-        // decimal-point = %x2E       ; .
-        // digit1-9 = %x31-39         ; 1-9
-        // e = %x65 / %x45            ; e E
-        // exp = e [ minus / plus ] 1*DIGIT
-        // frac = decimal-point 1*DIGIT
-        // int = zero / ( digit1-9 *DIGIT )
-        // minus = %x2D               ; -
-        // plus = %x2B                ; +
-        // zero = %x30                ; 0
-        //string = quotation-mark *char quotation-mark
-        //char = unescaped /
-        //    escape (
-        //        %x22 /          ; "    quotation mark  U+0022
-        //        %x5C /          ; \    reverse solidus U+005C
-        //        %x2F /          ; /    solidus         U+002F
-        //        %x62 /          ; b    backspace       U+0008
-        //        %x66 /          ; f    form feed       U+000C
-        //        %x6E /          ; n    line feed       U+000A
-        //        %x72 /          ; r    carriage return U+000D
-        //        %x74 /          ; t    tab             U+0009
-        //        %x75 4HEXDIG )  ; uXXXX                U+XXXX
-        //escape = %x5C              ; \ //
-        //quotation-mark = %x22      ; "
-        //unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
 
         constexpr char  begin_array = 0x5B; // [ left square bracket
         constexpr char  begin_object = 0x7B; // { left curly bracket
@@ -119,8 +66,6 @@ namespace JSON {
     struct OutOfRange : public JSON::Exception {};
     struct AttributeNotUnique : public JSON::Exception {};
 
-    // TODO: introduce Mutable and Immutable objects
-
     struct IObject;
     struct IAggregateObject;
 
@@ -141,8 +86,15 @@ namespace JSON {
             return getValue();
         }
 
+        virtual void serialize(std::string& indentation,std::ostream&) const = 0;
+
         virtual ~IObject() = default;
     };
+
+    inline std::ostream& operator << (std::ostream& os, const IObject& obj) {
+        obj.serialize(std::string{},os);
+        return os;
+    }
 
     struct IAggregateObject {
         // for arrays
@@ -211,6 +163,25 @@ namespace JSON {
 
         void emplace(const std::string&& name,IObjectPtr&& obj) override {
             emplace_entries(Entry(name,std::move(obj)));
+        }
+
+        void serialize(std::string& indentation, std::ostream& os) const override {
+            os << begin_object << "\n";
+            indentation.push_back(' ');
+            indentation.push_back(' ');
+            for (auto i = values.begin(); i != values.end();) {
+                os << indentation << quotation_mark << i->first << quotation_mark
+                    << " " << name_separator << " ";
+                
+                i->second->serialize(indentation,os);
+                ++i;
+                if (i != values.end()) os << " " << value_separator << "\n";
+                else os << "\n";
+                
+            }
+            indentation.pop_back();
+            indentation.pop_back();
+            os << indentation << end_object;
         }
 
     private:
@@ -286,6 +257,16 @@ namespace JSON {
 
         void emplace(const std::string&& name,IObjectPtr&& obj) override {
             throw AggregateTypeError();
+        }
+
+        void serialize(std::string& indentation,std::ostream& os) const  override {
+            os << begin_array << " ";
+            for (auto i = values.begin(); i != values.end();) {
+                (*i)->serialize(indentation,os);
+                ++i;
+                if (i != values.end()) os << " " << value_separator << " ";
+            }
+            os << " " << end_array;
         }
 
     private:
@@ -388,6 +369,11 @@ namespace JSON {
         virtual const std::string& getValue() const override {
             return value;
         }
+
+        void serialize(std::string&,std::ostream& os) const override {
+            os << value;
+        }
+
     protected:
         BuiltIn(const std::string& s) : value{ s } {}
         BuiltIn(std::string&& s) : value{ std::move(s) } {}
@@ -397,10 +383,15 @@ namespace JSON {
 
     class Bool : public BuiltIn {
     public:
-        explicit Bool(bool b = false) : BuiltIn(impl::to_string(b)) {}
+        explicit Bool(bool b = false) : BuiltIn(impl::to_string(b)), nativeValue{b} {}
         explicit Bool(const std::string& s) : BuiltIn(impl::Validator<bool>{}(s)){}
         explicit Bool(std::string&& s) : BuiltIn(impl::Validator<bool>{}(std::move(s))) {}
         explicit Bool(const char * s) : Bool(std::string(s)) {}
+        bool getNativeValue()const noexcept {
+            return nativeValue;
+        }
+    private:
+        bool nativeValue;
     };
 
     class True : public Bool {
@@ -424,13 +415,22 @@ namespace JSON {
         String() : BuiltIn(std::string{}) {}
         explicit String(const std::string& t) : BuiltIn(t) {}
         explicit String(std::string&& t) : BuiltIn(std::move(t)) {}
+        
+        void serialize(std::string&,std::ostream& os) const override {
+            os << quotation_mark << getValue() << quotation_mark;
+        }
     };
 
     class Number : public BuiltIn {
     public:
-        explicit Number(double d = 0.0) : BuiltIn(std::to_string(d)) {}
+        explicit Number(double d = 0.0) : BuiltIn(std::to_string(d)), nativeValue{d} {}
         explicit Number(const std::string& s) : BuiltIn(impl::Validator<double>{}(s)){}
         explicit Number(std::string&& s) : BuiltIn(impl::Validator<double>{}(std::move(s))) {}
+        double getNativeValue()const noexcept {
+            return nativeValue;
+        }
+    private:
+        double nativeValue;
     };
 
     class Null : public BuiltIn {
@@ -438,21 +438,24 @@ namespace JSON {
         explicit Null() : BuiltIn(std::string(value_null)) {}
         explicit Null(const std::string& s) : BuiltIn(impl::Validator<nullptr_t>{}(s)) {}
         explicit Null(std::string&& s) : BuiltIn(impl::Validator<nullptr_t>{}(std::move(s))) {}
+        nullptr_t getNativeValue()const noexcept {
+            return nullptr;
+        }
     };
 
-    template<typename T> struct is_JSON_type : public std::false_type {};
-    template<> struct is_JSON_type<Object> : public std::true_type {};
-    template<> struct is_JSON_type<Array> : public std::true_type {};
-    template<> struct is_JSON_type<BuiltIn> : public std::true_type {};
-    template<> struct is_JSON_type<Bool> : public std::true_type {};
-    template<> struct is_JSON_type<True> : public std::true_type {};
-    template<> struct is_JSON_type<False> : public std::true_type {};
-    template<> struct is_JSON_type<String> : public std::true_type {};
-    template<> struct is_JSON_type<Number> : public std::true_type {};
-    template<> struct is_JSON_type<Null> : public std::true_type {};
+    template<typename T> struct IsJSONType : public std::false_type {};
+    template<> struct IsJSONType<Object> : public std::true_type {};
+    template<> struct IsJSONType<Array> : public std::true_type {};
+    template<> struct IsJSONType<BuiltIn> : public std::true_type {};
+    template<> struct IsJSONType<Bool> : public std::true_type {};
+    template<> struct IsJSONType<True> : public std::true_type {};
+    template<> struct IsJSONType<False> : public std::true_type {};
+    template<> struct IsJSONType<String> : public std::true_type {};
+    template<> struct IsJSONType<Number> : public std::true_type {};
+    template<> struct IsJSONType<Null> : public std::true_type {};
 
     template<typename T,typename... Args>
-    std::enable_if_t<is_JSON_type<T>::value,IObjectPtr> Create(Args&&... args) {
+    std::enable_if_t<IsJSONType<T>::value,IObjectPtr> Create(Args&&... args) {
         return IObjectPtr(new T(std::forward<Args>(args)...));
     }
 

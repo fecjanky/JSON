@@ -3,42 +3,42 @@
   <Class Name="JSON::Object">
     <Position X="8.5" Y="7" Width="2.75" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAACIgAAAAAAAAAAEAACAAAAAAAAAAYEA=</HashCode>
+      <HashCode>AAAAAAAAAAAAACIgAAAAIAAAAAEAACAAAAAAAAAAYEA=</HashCode>
       <FileName>JSON.h</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::Array">
     <Position X="12" Y="7" Width="2.75" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAACCAAAAAAAAAAAAEAACAAAAAAAAAAQEA=</HashCode>
+      <HashCode>AAAAAAAAAAAACCAAAAAAIAAAAAEAACAAAAAAAAAAQEA=</HashCode>
       <FileName>JSON.h</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::BuiltIn">
     <Position X="3" Y="7" Width="2.75" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAACAAAAAAAAAAAAEAACAAAAAAAIAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAAAAACAAAAAAIAAAAAEAACAAAAAAAIAAAAA=</HashCode>
       <FileName>JSON.h</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::Bool">
     <Position X="0.75" Y="9.75" Width="1.75" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAgAgAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSON.h</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::String">
     <Position X="3.25" Y="9.75" Width="2" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAAAAAAAAQAAAIAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSON.h</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::Null">
     <Position X="6" Y="9.75" Width="1.75" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAA=</HashCode>
       <FileName>JSON.h</FileName>
     </TypeIdentifier>
   </Class>
@@ -87,7 +87,7 @@
   <Struct Name="JSON::IObject">
     <Position X="6.5" Y="4.5" Width="2.75" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAACAAAAAgAAAAAAEAEAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAAAAACAAAAAgIAAAAAEAEAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSON.h</FileName>
     </TypeIdentifier>
   </Struct>
@@ -95,27 +95,6 @@
     <Position X="12.75" Y="5" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAIAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
-      <FileName>JSON.h</FileName>
-    </TypeIdentifier>
-  </Struct>
-  <Struct Name="JSON::is_JSON_type&lt;T&gt;" Collapsed="true">
-    <Position X="11" Y="4" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
-      <FileName>JSON.h</FileName>
-    </TypeIdentifier>
-  </Struct>
-  <Struct Name="JSON::is_JSON_type&lt;Array&gt;" Collapsed="true">
-    <Position X="12.75" Y="4" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
-      <FileName>JSON.h</FileName>
-    </TypeIdentifier>
-  </Struct>
-  <Struct Name="JSON::is_JSON_type&lt;Object&gt;" Collapsed="true">
-    <Position X="11" Y="5" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSON.h</FileName>
     </TypeIdentifier>
   </Struct>

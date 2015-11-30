@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<ClassDiagram MajorVersion="1" MinorVersion="1" GroupingSetting="Access" MembersFormat="NameAndType">
+<ClassDiagram MajorVersion="1" MinorVersion="1" GroupingSetting="Access">
   <Class Name="JSON::impl::ParserTemplate&lt;ParserT&gt;">
-    <Position X="6.25" Y="2.75" Width="2" />
+    <Position X="6.5" Y="2.5" Width="2" />
     <NestedTypes>
       <Class Name="JSON::impl::ParserTemplate&lt;ParserT&gt;::State" Collapsed="true">
         <TypeIdentifier>
@@ -10,12 +10,12 @@
       </Class>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAIAAEAAAAAAAAAAAAAAAAAIEAAAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAA=</HashCode>
       <FileName>JSONParser.h</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::impl::WSParser">
-    <Position X="0.75" Y="5.5" Width="2.75" />
+    <Position X="1" Y="5" Width="2.75" />
     <NestedTypes>
       <Struct Name="JSON::impl::WSParser::State" Collapsed="true">
         <TypeIdentifier>
@@ -29,7 +29,7 @@
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::impl::LiteralParser&lt;JSONLiteral&gt;">
-    <Position X="4.25" Y="5.5" Width="2.75" />
+    <Position X="4.5" Y="5" Width="2.75" />
     <NestedTypes>
       <Struct Name="JSON::impl::LiteralParser&lt;JSONLiteral&gt;::State" Collapsed="true">
         <TypeIdentifier>
@@ -43,29 +43,29 @@
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::impl::ObjectParser">
-    <Position X="7.75" Y="5.5" Width="2.25" />
+    <Position X="8" Y="5" Width="2.25" />
     <Compartments>
       <Compartment Name="Nested Types" Collapsed="false" />
     </Compartments>
     <NestedTypes>
-      <Struct Name="JSON::impl::ObjectParser::State" Collapsed="true">
+      <Struct Name="JSON::impl::ObjectParser::Exception" Collapsed="true">
         <TypeIdentifier>
           <NewMemberFileName>JSONParser.h</NewMemberFileName>
         </TypeIdentifier>
       </Struct>
-      <Struct Name="JSON::impl::ObjectParser::Exception" Collapsed="true">
+      <Struct Name="JSON::impl::ObjectParser::State" Collapsed="true">
         <TypeIdentifier>
           <NewMemberFileName>JSONParser.h</NewMemberFileName>
         </TypeIdentifier>
       </Struct>
     </NestedTypes>
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAgAAAAAAAAAAAIAAAIAAAAABAAAAAAAAE=</HashCode>
+      <HashCode>AAAAAAAAAAAgAAAgAACAAAAIAIAIAAAAABAAAAAAIAE=</HashCode>
       <FileName>JSONParser.h</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::impl::NumberParser">
-    <Position X="10.75" Y="5.5" Width="3" />
+    <Position X="11" Y="5" Width="3" />
     <NestedTypes>
       <Struct Name="JSON::impl::NumberParser::Exception" Collapsed="true">
         <TypeIdentifier>
@@ -77,16 +77,6 @@
           <NewMemberFileName>JSONParser.h</NewMemberFileName>
         </TypeIdentifier>
       </Struct>
-      <Struct Name="JSON::impl::NumberParser::NoOp" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>JSONParser.h</NewMemberFileName>
-        </TypeIdentifier>
-      </Struct>
-      <Struct Name="JSON::impl::NumberParser::Finished" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>JSONParser.h</NewMemberFileName>
-        </TypeIdentifier>
-      </Struct>
     </NestedTypes>
     <TypeIdentifier>
       <HashCode>AIAAAAIGAAAAAAAgIAEAAAAIAAAABAAAABCAAAAAAAA=</HashCode>
@@ -94,21 +84,21 @@
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::impl::IsLiteral&lt;...Literal&gt;" Collapsed="true">
-    <Position X="14.75" Y="0.5" Width="1.5" />
+    <Position X="15" Y="0.5" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAgAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSONParser.h</FileName>
     </TypeIdentifier>
   </Class>
   <Class Name="JSON::Parser">
-    <Position X="8.25" Y="13.75" Width="2.75" />
+    <Position X="0.5" Y="13.75" Width="2.75" />
     <TypeIdentifier>
       <HashCode>AAAgAAAAAAAAEAAEEAAAAAAAAAAAAAAACAAgAAAAAAA=</HashCode>
       <FileName>JSONParser.h</FileName>
     </TypeIdentifier>
   </Class>
   <Struct Name="JSON::impl::IParser">
-    <Position X="8.25" Y="10.5" Width="2.75" />
+    <Position X="0.5" Y="10.5" Width="2.75" />
     <NestedTypes>
       <Struct Name="JSON::impl::IParser::Exception" Collapsed="true">
         <TypeIdentifier>
@@ -122,49 +112,42 @@
     </TypeIdentifier>
   </Struct>
   <Struct Name="JSON::impl::ISubParser">
-    <Position X="6.25" Y="0.5" Width="2" />
-    <NestedTypes>
-      <Struct Name="JSON::impl::ISubParser::Exception" Collapsed="true">
-        <TypeIdentifier>
-          <NewMemberFileName>JSONParser.h</NewMemberFileName>
-        </TypeIdentifier>
-      </Struct>
-    </NestedTypes>
+    <Position X="6.5" Y="0.5" Width="2" />
     <TypeIdentifier>
       <HashCode>AAABAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSONParser.h</FileName>
     </TypeIdentifier>
   </Struct>
-  <Struct Name="JSON::impl::ISubParserState">
-    <Position X="14.75" Y="1.75" Width="1.5" />
+  <Struct Name="JSON::impl::ISubParserState" Collapsed="true">
+    <Position X="15" Y="1.75" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAABAAAAAACAABAAAIAAAAEAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AAAAAEAAAAAAAAAAACAABAAAIAAAAEAAAAAAAAAAAAA=</HashCode>
       <FileName>JSONParser.h</FileName>
     </TypeIdentifier>
   </Struct>
   <Struct Name="JSON::impl::Exception" Collapsed="true">
-    <Position X="2.75" Y="8.5" Width="1.5" />
+    <Position X="3" Y="7.5" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSONParser.h</FileName>
     </TypeIdentifier>
   </Struct>
   <Struct Name="JSON::impl::InvalidStartingSymbol" Collapsed="true">
-    <Position X="2.75" Y="10" Width="1.5" />
+    <Position X="3" Y="9" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSONParser.h</FileName>
     </TypeIdentifier>
   </Struct>
   <Struct Name="JSON::impl::LiteralException" Collapsed="true">
-    <Position X="0.5" Y="10" Width="1.5" />
+    <Position X="0.75" Y="9" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSONParser.h</FileName>
     </TypeIdentifier>
   </Struct>
   <Struct Name="JSON::impl::ParsingIncomplete" Collapsed="true">
-    <Position X="5" Y="10" Width="1.5" />
+    <Position X="5.25" Y="9" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>JSONParser.h</FileName>

@@ -44,6 +44,7 @@ int main(int, char**) try{
         "menu": {
             "id": "file",
             "value": 3,
+            "array" : [1,"test",true ],
             "popup": {
                 "menuitem": "CreateNewDoc()",
                 "name": "Create new document..."
@@ -54,7 +55,15 @@ int main(int, char**) try{
 
     {
         auto objs = JSON::parse(json_text3.begin(), json_text3.end());
-        std::string s = (*objs[0])["menu"]["popup"]["name"];
+        auto& obj = *objs[0];
+        std::string s = obj["menu"]["popup"]["name"];
+        std::stringstream ss;
+        std::cout << obj << std::endl;
+        ss << obj << std::endl;
+        auto json_text_rb = ss.str();
+        auto objs2 = JSON::parse(json_text_rb.begin(), json_text_rb.end());
+        auto& obj2 = *objs2[0];
+        std::cout << obj2 << std::endl;
     }
     return 0;
 }
