@@ -50,7 +50,7 @@ int main(int, char**) try{
                 "name": "Create new document..."
             }
         }
-    }    
+    }   
 )--" };
 
     {
