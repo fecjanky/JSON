@@ -9,14 +9,15 @@ int main(int, char**) try{
 
     //JSON::Create<JSON::Object>(std::move(list));
     //JSON::Create<JSON::Number>("4.4255");
+    using JSON = JSON::Types<char>;
     JSON::Number n2(3.14);
     JSON::Number n(std::string("4.4255"));
     //JSON::Bool b(std::string("false"));
     JSON::String s("jsdf;ldskfs");
 
-    auto p = JSON::Create<JSON::Object>(
+    auto p = ::JSON::Create<JSON::Object>(
         //JSON::Object::Entry{ "number",JSON::Create<JSON::Number>(4.4255) } ,
-        JSON::Object::Entry( "message",JSON::Create<JSON::String>("Hello") )
+        JSON::Object::Entry( "message",::JSON::Create<JSON::String>("Hello") )
     );
 
     auto& pr = *p;
@@ -52,19 +53,76 @@ int main(int, char**) try{
         }
     }   
 )--" };
+      
+    std::wstring wjson { LR"--( 
+    {
+        "menu": {
+            "id": "file",
+            "value": 3,
+            "array" : [1,"test",true ],
+            "popup": {
+                "menuitem": "CreateNewDoc()",
+                "name": "Create new document..."
+            }
+        }
+    }   
+)--" };
+
+    std::u16string ujson{ uR"--( 
+    {
+        "menu": {
+            "id": "file",
+            "value": 3,
+            "array" : [1,"test",true ],
+            "popup": {
+                "menuitem": "CreateNewDoc()",
+                "name": "Create new document..."
+            }
+        }
+    }   
+)--" };
+
+
+    std::u32string Ujson{ UR"--( 
+    {
+        "menu": {
+            "id": "file",
+            "value": 3,
+            "array" : [1,"test",true ],
+            "popup": {
+                "menuitem": "CreateNewDoc()",
+                "name": "Create new document..."
+            }
+        }
+    }   
+)--" };
 
     {
-        auto objs = JSON::parse(json_text3.begin(), json_text3.end());
+        auto objs = ::JSON::parse(json_text3.begin(), json_text3.end());
+        auto wobjs = ::JSON::parse(wjson.begin(), wjson.end());
+
         auto& obj = *objs[0];
+        auto& wobj = *wobjs[0];
+
+        
         std::string s = obj["menu"]["popup"]["name"];
         std::stringstream ss;
+        std::wstringstream wss;
+
         std::cout << obj << std::endl;
+        std::wcout << wobj << std::endl;
         ss << obj << std::endl;
+        wss << wobj << std::endl;
         auto json_text_rb = ss.str();
-        auto objs2 = JSON::parse(json_text_rb.begin(), json_text_rb.end());
+        auto wjson_text_rb = wss.str();
+        auto objs2 = ::JSON::parse(json_text_rb.begin(), json_text_rb.end());
+        auto wobjs2 = ::JSON::parse(wjson_text_rb.begin(), wjson_text_rb.end());
         auto& obj2 = *objs2[0];
+        auto& wobj2 = *wobjs2[0];
         std::cout << obj2 << std::endl;
+        std::wcout << wobj2 << std::endl;
     }
+
     return 0;
 }
 catch (const std::exception& e) {

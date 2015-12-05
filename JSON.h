@@ -71,11 +71,11 @@ namespace JSON {
     }
 
     template<typename CharT>
-    struct IAggregateObjectT {
+    struct IAggregateObjectT : public IObjectT<CharT> {
         // for arrays
-        virtual void emplace(IObjectPtrT<CharT>&& obj) = 0;
+        virtual void emplace(IObjectPtrT&& obj) = 0;
         // for objects
-        virtual void emplace(const std::string&& name, IObjectPtrT<CharT>&& obj) = 0;
+        virtual void emplace(StringType&& name, IObjectPtrT&& obj) = 0;
 
         virtual ~IAggregateObjectT() = default;
     };
@@ -99,12 +99,18 @@ namespace JSON {
         static constexpr std::array<char, 4> whitespace() { 
             return {' ', '\t', '\n', '\r' }; 
         }
+        static constexpr const char*const whitespace_string() {
+            return " \t\n\r";
+        }
         static constexpr std::array<char, 8> string_escapes() { 
             return{ '"','\\','/','b','f','n','r','t' };
         }
-        static constexpr const char* value_false() { return "false"; }
-        static constexpr const char* value_true() { return "true"; }
-        static constexpr const char* value_null() { return "null"; }
+        static constexpr const char*const begin_number() {
+            return "-0123456789";
+        }
+        static constexpr const char*const value_false() { return "false"; }
+        static constexpr const char*const value_true() { return "true"; }
+        static constexpr const char*const value_null() { return "null"; }
     };
 
     template<>
@@ -123,12 +129,18 @@ namespace JSON {
         static constexpr std::array<wchar_t, 4> whitespace() {
             return{ L' ', L'\t', L'\n', L'\r' };
         }
+        static constexpr const wchar_t*const whitespace_string() {
+            return L" \t\n\r";
+        }
         static constexpr std::array<wchar_t, 8> string_escapes() {
             return{ L'"',L'\\',L'/',L'b',L'f',L'n',L'r',L't' };
         }
-        static constexpr const wchar_t* value_false() { return L"false"; }
-        static constexpr const wchar_t* value_true() { return L"true"; }
-        static constexpr const wchar_t* value_null() { return L"null"; }
+        static constexpr const wchar_t*const begin_number() {
+            return L"-0123456789";
+        }
+        static constexpr const wchar_t*const value_false() { return L"false"; }
+        static constexpr const wchar_t*const value_true() { return L"true"; }
+        static constexpr const wchar_t*const value_null() { return L"null"; }
     };
 
     template<>
@@ -147,12 +159,18 @@ namespace JSON {
         static constexpr std::array<char16_t, 4> whitespace() {
             return{ u' ', u'\t', u'\n', u'\r' };
         }
+        static constexpr const char16_t*const whitespace_string() {
+            return u" \t\n\r";
+        }
         static constexpr std::array<char16_t, 8> string_escapes() {
             return{ u'"',u'\\',u'/',u'b',u'f',u'n',u'r',u't' };
         }
-        static constexpr const char16_t* value_false() { return u"false"; }
-        static constexpr const char16_t* value_true() { return u"true"; }
-        static constexpr const char16_t* value_null() { return u"null"; }
+        static constexpr const char16_t*const begin_number() {
+            return u"-0123456789";
+        }
+        static constexpr const char16_t*const value_false() { return u"false"; }
+        static constexpr const char16_t*const value_true() { return u"true"; }
+        static constexpr const char16_t*const value_null() { return u"null"; }
     };
 
     template<>
@@ -171,17 +189,23 @@ namespace JSON {
         static constexpr std::array<char32_t, 4> whitespace() {
             return{ U' ', U'\t', U'\n', U'\r' };
         }
+        static constexpr const char32_t*const whitespace_string() {
+            return U" \t\n\r";
+        }
         static constexpr std::array<char32_t, 8> string_escapes() {
             return{ U'"',U'\\',U'/',U'b',U'f',U'n',U'r',U't' };
         }
-        static constexpr const char32_t* value_false() { return U"false"; }
-        static constexpr const char32_t* value_true() { return U"true"; }
-        static constexpr const char32_t* value_null() { return U"null"; }
+        static constexpr const char32_t*const begin_number() {
+            return U"-0123456789";
+        }
+        static constexpr const char32_t*const value_false() { return U"false"; }
+        static constexpr const char32_t*const value_true() { return U"true"; }
+        static constexpr const char32_t*const value_null() { return U"null"; }
     };
 
     
     template<typename CharT>
-    class ObjectT : public IObjectT<CharT>, public IAggregateObjectT<CharT> {
+    class ObjectT : public IAggregateObjectT<CharT> {
     public:
 
         using Key = StringType;
@@ -239,8 +263,8 @@ namespace JSON {
             throw AggregateTypeError();
         }
 
-        void emplace(const StringType&& name, IObjectPtrT&& obj) override {
-            emplace_entries(Entry(name,std::move(obj)));
+        void emplace(StringType&& name, IObjectPtrT&& obj) override {
+            emplace_entries(Entry(std::move(name),std::move(obj)));
         }
 
         void serialize(StringType& indentation, OstreamT& os) const override {
@@ -288,7 +312,7 @@ namespace JSON {
     };
 
     template<typename CharT>
-    class ArrayT : public IObjectT<CharT>, public IAggregateObjectT<CharT> {
+    class ArrayT : public IAggregateObjectT<CharT> {
     public:
 
         using Value = IObjectPtrT;
@@ -340,7 +364,7 @@ namespace JSON {
             values.emplace_back(std::move(obj));
         }
 
-        void emplace(const StringType&& name, IObjectPtrT&& obj) override {
+        void emplace(StringType&& name, IObjectPtrT&& obj) override {
             throw AggregateTypeError();
         }
 
@@ -388,7 +412,7 @@ namespace JSON {
                 std::basic_stringstream<CharT> ss(str);
                 ss << std::scientific;
                 ss >> temp;
-                if (ss.bad() || ss.fail() || ss.peek() != EOF)
+                if (ss.bad() || ss.fail() || ss.peek() != std::char_traits<CharT>::eof())
                     throw ValueError();
                 return std::forward<StringType>(str);
             }
@@ -430,8 +454,8 @@ namespace JSON {
         private:
             template<typename CharT, typename StringType>
             StringType&& validate(StringType&& str) const {
-                if (str != std::basic_string<CharT>(Literals::value_false()) &&
-                    str != std::basic_string<CharT>(Literals::value_true()))
+                if (str != std::basic_string<CharT>(LiteralsT<CharT>::value_false()) &&
+                    str != std::basic_string<CharT>(LiteralsT<CharT>::value_true()))
                     throw ValueError();
                 return std::forward<StringType>(str);
             }
@@ -497,18 +521,23 @@ namespace JSON {
     template<typename CharT>
     class TrueT : public BoolT<CharT>{
     public:
-        TrueT() : BoolT(Literals::value_true()) {}
+        TrueT() : BoolT(LiteralsT<CharT>::value_true()) {}
         explicit TrueT(const StringType& s) : BoolT(s) {}
         explicit TrueT(StringType&& s) : BoolT(s) {}
+        static const CharT* Literal() {
+            return LiteralsT<CharT>::value_true();
+        }
     };
 
     template<typename CharT>
     class FalseT : public BoolT<CharT> {
     public:
-        FalseT() : BoolT(Literals::value_false()) {};
+        FalseT() : BoolT(LiteralsT<CharT>::value_false()) {};
         explicit FalseT(const StringType& s) : BoolT(s) {}
         explicit FalseT(StringType&& s) : BoolT(s) {}
-
+        static const CharT* Literal() {
+            return LiteralsT<CharT>::value_false();
+        }
     };
 
 
@@ -520,7 +549,8 @@ namespace JSON {
         explicit StringT(StringType&& t) : BuiltInT(std::move(t)) {}
         
         void serialize(StringType&,OstreamT& os) const override {
-            os << Literals::quotation_mark << getValue() << Literals::quotation_mark;
+            os << LiteralsT<CharT>::quotation_mark << getValue() 
+                << LiteralsT<CharT>::quotation_mark;
         }
     };
 
@@ -544,11 +574,14 @@ namespace JSON {
     template<typename CharT>
     class NullT : public BuiltInT<CharT> {
     public:
-        explicit NullT() : BuiltInT<CharT>(StringType(Literals::value_null())) {}
+        explicit NullT() : BuiltInT<CharT>(StringType(LiteralsT<CharT>::value_null())) {}
         explicit NullT(const StringType& s) : BuiltInT(impl::Validator<nullptr_t>{}(s)) {}
         explicit NullT(StringType&& s) : BuiltInT(impl::Validator<nullptr_t>{}(std::move(s))) {}
         nullptr_t getNativeValue()const noexcept {
             return nullptr;
+        }
+        static const CharT* Literal() {
+            return LiteralsT<CharT>::value_null();
         }
     };
 
@@ -572,19 +605,23 @@ namespace JSON {
             new T(std::forward<Args>(args)...));
     }
 
-    using IObject = IObjectT<char>;
-    using IObjectPtr = IObjectPtrT<char>;
-    using IAggregateObject = IAggregateObjectT<char>;
-    using Object = ObjectT<char>;
-    using Array = ArrayT<char>;
-    using BuiltIn = BuiltInT<char>;
-    using Bool = BoolT<char>;
-    using True = TrueT<char>;
-    using False = FalseT<char>;
-    using String = StringT<char>;
-    using Number = NumberT<char>;
-    using Null = NullT<char>;
-    using Literals = LiteralsT<char>;
+    template<typename CharT>
+    struct Types {
+        using IObject = IObjectT<CharT>;
+        using IObjectPtr = IObjectPtrT<CharT>;
+        using IAggregateObject = IAggregateObjectT<CharT>;
+        using Object = ObjectT<CharT>;
+        using Array = ArrayT<CharT>;
+        using BuiltIn = BuiltInT<CharT>;
+        using Bool = BoolT<CharT>;
+        using True = TrueT<CharT>;
+        using False = FalseT<CharT>;
+        using String = StringT<CharT>;
+        using Number = NumberT<CharT>;
+        using Null = NullT<CharT>;
+        using Literals = LiteralsT<CharT>;
+    };
+
 }
 
 
