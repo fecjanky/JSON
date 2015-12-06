@@ -82,10 +82,11 @@ inline std::basic_ostream<CharT>& operator <<(std::basic_ostream<CharT>& os,
 template<typename CharT>
 struct IAggregateObjectT: public IObjectT<CharT> {
     using StringType = std::basic_string<CharT>;
+    using IObjectPtr = JSON::IObjectPtrT<CharT>;
     // for arrays
-    virtual void emplace(IObjectPtrT<CharT> && obj) = 0;
+    virtual void emplace(IObjectPtr && obj) = 0;
     // for objects
-    virtual void emplace(StringType&& name, IObjectPtrT<CharT> && obj) = 0;
+    virtual void emplace(StringType&& name, IObjectPtr && obj) = 0;
 
     virtual ~IAggregateObjectT() = default;
 };
@@ -249,11 +250,12 @@ public:
     using StringType = std::basic_string<CharT>;
     using OstreamT = std::basic_ostream<CharT>;
     using Key = StringType;
-    using Value = IObjectPtrT<CharT>;
+    using Value = JSON::IObjectPtrT<CharT>;
     using type = std::unordered_map<Key, Value>;
     using Entry = std::pair<const Key, Value>;
     using Literals = JSON::LiteralsT<CharT>;
     using IObjectT = JSON::IObjectT<CharT>;
+    using IObjectPtr = JSON::IObjectPtrT<CharT>;
 
     ObjectT()
     {
@@ -309,12 +311,12 @@ public:
         emplace_impl(std::forward<Entries>(entries)...);
     }
 
-    void emplace(IObjectPtrT<CharT> && obj) override
+    void emplace(IObjectPtr && obj) override
     {
         throw AggregateTypeError();
     }
 
-    void emplace(StringType&& name, IObjectPtrT<CharT> && obj) override
+    void emplace(StringType&& name, IObjectPtr && obj) override
     {
         emplace_entries(Entry(std::move(name), std::move(obj)));
     }

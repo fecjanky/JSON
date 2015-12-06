@@ -148,10 +148,12 @@ public:
     using ISubParserState = ISubParserStateT<CharT>;
     using IParser = IParserT<CharT>;
 
-    class State: public ISubParserStateT<CharT> {
+    class State : public ISubParserStateT<CharT> {
     public:
-        explicit State(IParserT<CharT>& p);
-        ISubParserT<CharT>& getParser(IParserT<CharT>& p) override;
+        using ISubParser = ISubParserT<CharT>;
+        using IParser = IParserT<CharT>;
+        explicit State(IParser& p);
+        ISubParser& getParser(IParser& p) override;
         IObjectPtrT<CharT> getObject() override;
 
         StatePtr stateFunc;
@@ -321,8 +323,8 @@ std::enable_if_t<
     else {
         // FIXME: fix this
         ISubParserStateT<CharT>::template Create<SubParserT>(parser);
-//        parser.getStateStack().push(
-//                ISubParserStateT<CharT>::template Create<SubParserT>(parser));
+        parser.getStateStack().push(
+                ISubParserStateT<CharT>::template Create<SubParserT>(parser));
         return subparser(parser);
     }
 }
@@ -339,8 +341,8 @@ std::enable_if_t<
         return CheckStartSymbol(parser, subparsers...);
     else {
         // FIXME: fix this
-//        parser.getStateStack().push(
-//                ISubParserStateT<CharT>::template Create<SubParserT>(parser));
+        parser.getStateStack().push(
+                ISubParserStateT<CharT>::template Create<SubParserT>(parser));
         return subparser(parser);
     }
 }
@@ -474,7 +476,8 @@ public:
     using StatePtr = typename Base::StatePtr;
 
     struct State: public BaseStateT {
-        explicit State(IParserT<CharT>& p);
+        using IParser = IParserT<CharT>;
+        explicit State(IParser& p);
         IObjectPtrT<CharT> getObject() override;
 
         IObjectPtrT<CharT> object;
