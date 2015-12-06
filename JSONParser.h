@@ -109,21 +109,20 @@ struct ISubParserStateT {
     virtual ~ISubParserStateT() = default;
 
     template<typename SubParserImpl>
-    static typename SubParserImpl::State& Cast(SubParserImpl& t,
+    static typename SubParserImpl::State& Cast(const SubParserImpl&,
             ISubParserState& s)
     {
         return static_cast<typename SubParserImpl::State&>(s);
     }
 
-    template<
-        typename SubParserT,
-        typename = std::enable_if_t<std::is_base_of<ISubParserT<CharT>, SubParserT>::value>
-        >
+    template<typename SubParserT, typename = std::enable_if_t<
+            std::is_base_of<ISubParserT<CharT>, SubParserT>::value> >
     static ISubParserStatePtrT<CharT> Create(IParserT<CharT>& p)
     {
         using State = typename SubParserT::State;
         return ISubParserStatePtr(new State(p));
-    };
+    }
+    ;
 
 };
 
@@ -148,7 +147,7 @@ public:
     using ISubParserState = ISubParserStateT<CharT>;
     using IParser = IParserT<CharT>;
 
-    class State : public ISubParserStateT<CharT> {
+    class State: public ISubParserStateT<CharT> {
     public:
         using ISubParser = ISubParserT<CharT>;
         using IParser = IParserT<CharT>;
@@ -168,30 +167,27 @@ static ISubParserT<CharT>& StateTransition(Parser& current_parser,
         ParserState& state, IParserT<CharT>& parser)
 {
     throw typename Parser::Exception();
-    return current_parser;
 }
 
 template<typename Parser, typename ParserState, typename CharT,
         typename Predicate, typename Action, typename NextState,
         typename ... Predicates, typename ... Actions, typename ... NextStates>
-static ISubParserT<CharT>& StateTransition(
-        Parser& current_parser,
+static ISubParserT<CharT>& StateTransition(Parser& current_parser,
         ParserState& s, IParserT<CharT>& parser,
-        std::tuple<Predicate, Action, NextState>& p,
-        std::tuple<Predicates, Actions, NextStates>&... ps)
+        std::tuple<Predicate, Action, NextState>&& p,
+        std::tuple<Predicates, Actions, NextStates>&&... ps)
 {
-
-    auto& state = ISubParserStateT<CharT>::Cast(current_parser, s);
     static_assert(
             std::is_base_of<ISubParserT<CharT>, Parser>::value &&
             std::is_base_of<ISubParserStateT<CharT>, ParserState>::value,
             "State transition not possible");
 
     if (std::get<0>(p)(parser.getCurrentChar())) {
+        auto& state = ISubParserStateT<CharT>::Cast(current_parser, s);
         state.stateFunc = std::get<2>(p);
         return std::get<1>(p)(current_parser, state, parser);
     } else
-        return StateTransition(current_parser, state, parser, ps...);
+        return StateTransition(current_parser, s, parser, std::move(ps)...);
 
 }
 
@@ -220,7 +216,8 @@ struct Call {
     ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
             IParserT<CharT>&p)
     {
-        p.getStateStack().push(ISubParserStateT<CharT>::template Create<NextParserT>(p));
+        p.getStateStack().push(
+                ISubParserStateT<CharT>::template Create<NextParserT>(p));
         return std::get<NextParserT>(p.getParsers())(p);
     }
 };
@@ -287,12 +284,16 @@ private:
     }
 };
 
-struct IsDigit{
+struct IsDigit {
     template<typename CharT>
-    bool operator()(CharT c){
-        return std::isdigit(c,std::locale{});
+    bool operator()(CharT c)
+    {
+        return std::isdigit(c, std::locale { });
     }
 };
+
+template<typename T>
+class TD;
 
 class Others {
 public:
@@ -303,6 +304,20 @@ public:
     }
 };
 
+struct CheckSymbol {
+    template<typename CharT>
+    bool operator()(CharT c, const CharT* s)
+    {
+        using ct = std::char_traits<CharT>;
+        return ct::find(s, ct::length(s), c) != nullptr;
+    }
+    template<typename CharT>
+    bool operator()(CharT c, CharT s)
+    {
+        return std::char_traits<CharT>::eq(c, s);
+    }
+};
+
 template<typename CharT>
 ISubParserT<CharT>& CheckStartSymbol(IParserT<CharT>& IParser)
 {
@@ -310,50 +325,17 @@ ISubParserT<CharT>& CheckStartSymbol(IParserT<CharT>& IParser)
 }
 
 template<typename CharT, typename SubParserT, typename ... SubParsersT>
-std::enable_if_t<
-        !std::is_same<SubParserT, WSParserT<CharT>>::value
-                && std::is_pointer<
-                        decltype(std::declval<SubParserT>().getFirstSymbolSet())>::value,
-        ISubParserT<CharT>&> CheckStartSymbol(IParserT<CharT>& parser,
+ISubParserT<CharT>& CheckStartSymbol(IParserT<CharT>& parser,
         SubParserT& subparser, SubParsersT&... subparsers)
 {
-    std::basic_string<CharT> syms = subparser.getFirstSymbolSet();
-    if (syms.find(parser.getCurrentChar()) == std::basic_string<CharT>::npos)
-        return CheckStartSymbol(parser, subparsers...);
-    else {
-        // FIXME: fix this
-        ISubParserStateT<CharT>::template Create<SubParserT>(parser);
+    if (!std::is_same<WSParserT<CharT>, std::decay_t<SubParserT>> { }
+            && CheckSymbol { }(parser.getCurrentChar(),
+                    subparser.getFirstSymbolSet())) {
         parser.getStateStack().push(
                 ISubParserStateT<CharT>::template Create<SubParserT>(parser));
         return subparser(parser);
-    }
-}
-
-template<typename CharT, typename SubParserT, typename ... SubParsersT>
-std::enable_if_t<
-        !std::is_same<SubParserT, WSParserT<CharT>>::value
-                && !std::is_pointer<
-                        decltype(std::declval<SubParserT>().getFirstSymbolSet())>::value,
-        ISubParserT<CharT>&> CheckStartSymbol(IParserT<CharT>& parser,
-        SubParserT& subparser, SubParsersT&... subparsers)
-{
-    if (parser.getCurrentChar() != subparser.getFirstSymbolSet())
+    } else
         return CheckStartSymbol(parser, subparsers...);
-    else {
-        // FIXME: fix this
-        parser.getStateStack().push(
-                ISubParserStateT<CharT>::template Create<SubParserT>(parser));
-        return subparser(parser);
-    }
-}
-
-// Skip dispatching on WSParser
-template<typename CharT, typename SubParserT, typename ... SubParsersT>
-std::enable_if_t<std::is_same<SubParserT, WSParserT<CharT>>::value,
-        ISubParserT<CharT>&> CheckStartSymbol(IParserT<CharT>& parser,
-        SubParserT& subparser, SubParsersT&... subparsers)
-{
-    return CheckStartSymbol(parser, subparsers...);
 }
 
 template<typename CharT, typename ... Parsers>
@@ -650,7 +632,7 @@ inline ISubParserT<CharT>& NumberParserT<CharT>::start(ISubParserState& state,
     return StateTransition(*this, state, p,
             std::make_tuple(IsLiteral<CharT, '0'> { }, Store { },
                     &NumberParserT<CharT>::startingZero),
-            std::make_tuple(IsDigit{}, Store { },
+            std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::integerPart),
             std::make_tuple(IsLiteral<CharT, '-'> { }, Store { },
                     &NumberParserT<CharT>::minus));
@@ -663,7 +645,7 @@ inline ISubParserT<CharT>& NumberParserT<CharT>::minus(ISubParserState& state,
     return StateTransition(*this, state, p,
             std::make_tuple(IsLiteral<CharT, '0'> { }, Store { },
                     &NumberParserT<CharT>::startingZero),
-            std::make_tuple(IsDigit{}, Store { },
+            std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::integerPart));
 }
 
@@ -682,7 +664,7 @@ inline ISubParserT<CharT>& NumberParserT<CharT>::integerPart(
         ISubParserState& state, IParser& p)
 {
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit{}, Store { },
+            std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::integerPart),
             std::make_tuple(IsLiteral<CharT, '.'> { }, Store { },
                     &NumberParserT<CharT>::fractionPartStart),
@@ -696,7 +678,7 @@ inline ISubParserT<CharT>& NumberParserT<CharT>::fractionPartStart(
         ISubParserState& state, IParser& p)
 {
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit{}, Store { },
+            std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::fractionPart));
 }
 
@@ -705,7 +687,7 @@ inline ISubParserT<CharT>& NumberParserT<CharT>::fractionPart(
         ISubParserState& state, IParser& p)
 {
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit{}, Store { },
+            std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::fractionPart),
             std::make_tuple(IsLiteral<CharT, 'e', 'E'> { }, Store { },
                     &NumberParserT<CharT>::exponentPartStart),
@@ -719,7 +701,7 @@ inline ISubParserT<CharT>& NumberParserT<CharT>::exponentPartStart(
     return StateTransition(*this, state, p,
             std::make_tuple(IsLiteral<CharT, '-', '+'> { }, Store { },
                     &NumberParserT<CharT>::exponentPartStartSigned),
-            std::make_tuple(IsDigit{}, Store { },
+            std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::exponentPart));
 }
 
@@ -728,7 +710,7 @@ inline ISubParserT<CharT>& NumberParserT<CharT>::exponentPartStartSigned(
         ISubParserState& state, IParser& p)
 {
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit{}, Store { },
+            std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::exponentPart));
 }
 
@@ -737,7 +719,7 @@ inline ISubParserT<CharT>& NumberParserT<CharT>::exponentPart(
         ISubParserState& state, IParser& p)
 {
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit{}, Store { },
+            std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::exponentPart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
@@ -1008,7 +990,7 @@ inline ISubParserT<CharT>& StringParserT<CharT>::parseEscapeChar(
                     NoOp { }, &StringParserT<CharT>::parseUnicodeEscapeChar),
             std::make_tuple([](CharT c) -> bool {
                 for(auto e : JSON::LiteralsT<CharT>::string_escapes())
-                if(e == c)return true;
+                if(std::char_traits<CharT>::eq(e,c))return true;
                 return false;
             }, Store { }, &StringParserT<CharT>::parseChar));
 }
@@ -1022,7 +1004,7 @@ inline ISubParserT<CharT>& StringParserT<CharT>::parseUnicodeEscapeChar(
     return StateTransition(*this, s, p);
 }
 
-}
+} // namespace JSON::impl
 
 template<typename CharT>
 class Parser: public impl::IParserT<CharT> {
@@ -1033,7 +1015,9 @@ public:
             current_char { }
     {
         using ISubParserState = impl::ISubParserStateT<CharT>;
-        stateStack.push(ISubParserState::template Create<impl::WSParserT<CharT>>(*this));
+        stateStack.push(
+                ISubParserState::template Create<impl::WSParserT<CharT>>(
+                        *this));
     }
 
     ObjContainer retrieveObjects()
@@ -1115,8 +1099,7 @@ ObjContainerT<std::decay_t<decltype(*(std::declval<ForwardIterator>()))>> parse(
 
     return p.retrieveObjects();
 }
-;
 
-}
+} // namespace JSON
 
 #endif //JSONPARSER_H_INCLUDED__
