@@ -1,6 +1,11 @@
 #include <iostream>
+#include <sstream>
+
 #include "JSON.h"
 #include "JSONParser.h"
+
+
+
 
 int main(int, char**) try{
 
@@ -95,8 +100,9 @@ int main(int, char**) try{
         std::wstringstream wss;
 
         std::cout << obj << std::endl;
+        obj.serialize(std::cout);
         std::wcout << wobj << std::endl;
-        ss << obj << std::endl;
+        obj.serialize(ss);
         wss << wobj << std::endl;
         auto json_text_rb = ss.str();
         auto wjson_text_rb = wss.str();
@@ -106,6 +112,7 @@ int main(int, char**) try{
         auto& wobj2 = *wobjs2[0];
         std::cout << obj2 << std::endl;
         std::wcout << wobj2 << std::endl;
+        wobj2.serialize(std::wcout);
     }
 
     return 0;

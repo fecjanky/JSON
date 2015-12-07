@@ -11,9 +11,12 @@
 #include <locale>
 
 #include "JSON.h"
+#include "JSONObjects.h"
 
 // TODO: Add Allocator support for parsers
 // TODO: Add Parsing Startegy (Mutable, Immutable)
+// TODO: replace literalas in predicate templates
+
 namespace JSON {
 
 template<typename CharT>
@@ -523,7 +526,7 @@ public:
     static StatePtr getInitState();
 
 private:
-    ISubParser& emplaceAndDispatch(ISubParserState& state, IParser& p);
+    ISubParser& dispatch(ISubParserState& state, IParser& p);
 };
 
 ////////////////////////////////////////////////////////////////////
@@ -544,6 +547,12 @@ ParserTemplate<ParserT, CharT>::nextParser(IParser& p) noexcept
 {
     p.getLastState() = std::move(p.getStateStack().top());
     p.getStateStack().pop();
+    // If last parser in stack
+    // add last object to output collection
+    if(p.getStateStack().size() == 1){
+        p.getObjects().emplace_back(
+            std::move(p.getLastState()->getObject()));
+    }
     return p.getStateStack().top()->getParser(p);
 }
 
@@ -913,20 +922,13 @@ inline const CharT* WSParserT<CharT>::getFirstSymbolSet()
 template<typename CharT>
 inline typename WSParserT<CharT>::StatePtr WSParserT<CharT>::getInitState()
 {
-    return &WSParserT<CharT>::emplaceAndDispatch;
+    return &WSParserT<CharT>::dispatch;
 }
 
 template<typename CharT>
-inline ISubParserT<CharT>& WSParserT<CharT>::emplaceAndDispatch(
+inline ISubParserT<CharT>& WSParserT<CharT>::dispatch(
         ISubParserState& state, IParser& p)
 {
-    auto& s = static_cast<State&>(state);
-
-    if (p.getLastState()) {
-        auto last_state = std::move(p.getLastState());
-        p.getObjects().emplace_back(std::move(last_state->getObject()));
-    }
-
     if (IsWhitespace<CharT>(p.getCurrentChar()))
         return *this;
     else {
