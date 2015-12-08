@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <sstream>
 
 #include "JSON.h"
@@ -30,7 +30,7 @@ int main(int, char**) try{
     )--" };
     
     std::string json_text3
-    { R"--( 
+    { u8R"--( 
     {
         "menu": {
             "id": "file",
@@ -94,7 +94,15 @@ int main(int, char**) try{
         auto& obj = *objs[0];
         auto& wobj = *wobjs[0];
 
-        
+        auto c = 'Ä';
+        std::string ccu8 = u8"ÄÄ";
+        std::string cc = "ÄÄ";
+        std::locale my("");
+        std::cout.imbue(my);
+        std::cout << ccu8 << std::endl;
+        std::cout << cc << std::endl;
+        auto bo = cc == ccu8;
+
         std::string s = obj["menu"]["popup"]["name"];
         std::stringstream ss;
         std::wstringstream wss;

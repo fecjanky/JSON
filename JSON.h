@@ -1,4 +1,4 @@
-#ifndef JSON_H_INCLUDED__
+﻿#ifndef JSON_H_INCLUDED__
 #define JSON_H_INCLUDED__
 
 #include <exception>

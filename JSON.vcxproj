@@ -122,8 +122,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="JSON.h" />
+    <ClInclude Include="JSONLiterals.h" />
     <ClInclude Include="JSONObjects.h" />
     <ClInclude Include="JSONParser.h" />
+    <ClInclude Include="JSONSchema.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="JSON.cd" />

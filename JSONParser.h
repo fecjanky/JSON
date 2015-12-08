@@ -1,4 +1,4 @@
-#ifndef JSONPARSER_H_INCLUDED__
+﻿#ifndef JSONPARSER_H_INCLUDED__
 #define JSONPARSER_H_INCLUDED__
 
 #include <type_traits>
@@ -87,7 +87,7 @@ template<typename CharT>
 inline bool IsWhitespace(CharT c)
 {
     for (auto w : JSON::LiteralsT<CharT>::whitespace())
-        if (c == w)
+        if (std::char_traits<CharT>::eq(c,w))
             return true;
     return false;
 }
@@ -208,6 +208,8 @@ struct Store {
     ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
             IParserT<CharT>&p)
     {
+        static_assert(std::is_same<std::basic_string<CharT>, decltype(s.token)>::value,
+            "State member token is not type of string");
         s.token.push_back(p.getCurrentChar());
         return current_parser;
     }
@@ -240,6 +242,8 @@ struct Return {
     ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
             IParserT<CharT>&p)
     {
+        static_assert(std::is_same<JSON::IObjectPtrT<CharT>, decltype(s.object)>::value,
+            "State member object is not type of Object pointer");
         s.object = JSON::Create<JSONT>(std::move(s.token));
         return current_parser.nextParser(p);
     }
@@ -251,6 +255,8 @@ struct CallBack {
     ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
             IParserT<CharT>&p)
     {
+        static_assert(std::is_same<JSON::IObjectPtrT<CharT>, decltype(s.object)>::value,
+            "State member object is not type of Object pointer");
         s.object = JSON::Create<JSONT>(std::move(s.token));
         return current_parser.nextParser(p)(p);
     }
@@ -280,10 +286,46 @@ private:
     template<typename Char, typename ... Chars>
     bool eval(CharT c, Char C, Chars ... Cs)
     {
-        if (c == C)
+        if (std::char_traits<Char>::eq(c,C))
             return true;
         else
             return eval(c, Cs...);
+    }
+};
+
+template<typename T>
+struct TD;
+template<typename T,T val>
+struct TDv;
+
+struct IsStringChar {
+    template<typename CharT>
+    bool operator()(CharT c) {
+        using ct = std::char_traits<CharT>;
+        // FIXME: find correct logic for checking string chars
+        return  ct::eq(c, ct::to_char_type(0x20)) || 
+                ct::eq(c, ct::to_char_type(0x21)) || 
+                gt_eq(c, ct::to_char_type(0x23)) && 
+                lt_eq(c, ct::to_char_type(0x5b)) || 
+                gt_eq(c, ct::to_char_type(0x5D));
+    }
+private:
+    template<typename CharT>
+    static bool lt_eq(CharT lhs,CharT rhs) {
+        using ct = std::char_traits<CharT>;
+        return ct::lt(lhs, rhs) || ct::eq(lhs,rhs);
+    }
+
+    template<typename CharT>
+    static bool gt(CharT lhs, CharT rhs) {
+        using ct = std::char_traits<CharT>;
+        return !ct::lt(lhs, rhs) && !ct::eq(lhs, rhs);
+    }
+
+    template<typename CharT>
+    static bool gt_eq(CharT lhs, CharT rhs) {
+        using ct = std::char_traits<CharT>;
+        return !ct::lt(lhs, rhs);
     }
 };
 
@@ -294,9 +336,6 @@ struct IsDigit {
         return std::isdigit(c, std::locale { });
     }
 };
-
-template<typename T>
-class TD;
 
 class Others {
 public:
@@ -592,10 +631,10 @@ inline ISubParserT<CharT>&
 LiteralParser<JSONLiteral, CharT>::check(ISubParserState& s, IParser& p)
 {
     auto& state = ISubParserState::Cast(*this, s);
-    const size_t literal_size = std::char_traits<CharT>::length(
-            GetLiteral<JSONLiteral<CharT>>());
-    if (GetLiteral<JSONLiteral<CharT>>()[state.current_pos++]
-            != p.getCurrentChar())
+    using ct = std::char_traits<CharT>;
+    const size_t literal_size = ct::length(GetLiteral<JSONLiteral<CharT>>());
+    if (!ct::eq(GetLiteral<JSONLiteral<CharT>>()[state.current_pos++],
+        p.getCurrentChar()))
         throw LiteralException();
     else if (state.current_pos == literal_size) {
         return this->nextParser(p);
@@ -638,12 +677,13 @@ template<typename CharT>
 inline ISubParserT<CharT>& NumberParserT<CharT>::start(ISubParserState& state,
         IParser& p)
 {
+    using L = LiteralsT<CharT>;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<CharT, '0'> { }, Store { },
+            std::make_tuple(IsLiteral<CharT, L::zero> { }, Store { },
                     &NumberParserT<CharT>::startingZero),
             std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::integerPart),
-            std::make_tuple(IsLiteral<CharT, '-'> { }, Store { },
+            std::make_tuple(IsLiteral<CharT, L::minus> { }, Store { },
                     &NumberParserT<CharT>::minus));
 }
 
@@ -651,8 +691,9 @@ template<typename CharT>
 inline ISubParserT<CharT>& NumberParserT<CharT>::minus(ISubParserState& state,
         IParser& p)
 {
+    using L = LiteralsT<CharT>;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<CharT, '0'> { }, Store { },
+            std::make_tuple(IsLiteral<CharT, L::zero> { }, Store { },
                     &NumberParserT<CharT>::startingZero),
             std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::integerPart));
@@ -662,8 +703,9 @@ template<typename CharT>
 inline ISubParserT<CharT>& NumberParserT<CharT>::startingZero(
         ISubParserState& state, IParser& p)
 {
+    using L = LiteralsT<CharT>;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<CharT, '.'> { }, Store { },
+            std::make_tuple(IsLiteral<CharT, L::decimal_point> { }, Store { },
                     &NumberParserT<CharT>::fractionPartStart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
@@ -672,13 +714,14 @@ template<typename CharT>
 inline ISubParserT<CharT>& NumberParserT<CharT>::integerPart(
         ISubParserState& state, IParser& p)
 {
+    using L = LiteralsT<CharT>;
     return StateTransition(*this, state, p,
             std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::integerPart),
-            std::make_tuple(IsLiteral<CharT, '.'> { }, Store { },
+            std::make_tuple(IsLiteral<CharT, L::decimal_point> { }, Store { },
                     &NumberParserT<CharT>::fractionPartStart),
-            std::make_tuple(IsLiteral<CharT, 'e', 'E'> { }, Store { },
-                    &NumberParserT<CharT>::exponentPartStart),
+            std::make_tuple(IsLiteral<CharT, L::exponent_upper, L::exponent_lower> { }, 
+                    Store { },&NumberParserT<CharT>::exponentPartStart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
 
@@ -695,10 +738,11 @@ template<typename CharT>
 inline ISubParserT<CharT>& NumberParserT<CharT>::fractionPart(
         ISubParserState& state, IParser& p)
 {
+    using L = LiteralsT<CharT>;
     return StateTransition(*this, state, p,
             std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::fractionPart),
-            std::make_tuple(IsLiteral<CharT, 'e', 'E'> { }, Store { },
+            std::make_tuple(IsLiteral<CharT, L::exponent_upper, L::exponent_lower> { }, Store { },
                     &NumberParserT<CharT>::exponentPartStart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
@@ -707,8 +751,9 @@ template<typename CharT>
 inline ISubParserT<CharT>& NumberParserT<CharT>::exponentPartStart(
         ISubParserState& state, IParser& p)
 {
+    using L = LiteralsT<CharT>;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<CharT, '-', '+'> { }, Store { },
+            std::make_tuple(IsLiteral<CharT, L::minus, L::plus> { }, Store { },
                     &NumberParserT<CharT>::exponentPartStartSigned),
             std::make_tuple(IsDigit { }, Store { },
                     &NumberParserT<CharT>::exponentPart));
@@ -975,10 +1020,7 @@ inline ISubParserT<CharT>& StringParserT<CharT>::parseChar(ISubParserState& s,
             std::make_tuple(
                     IsLiteral<CharT, LiteralsT<CharT>::string_escape> { },
                     NoOp { }, &StringParserT<CharT>::parseEscapeChar),
-            std::make_tuple([](CharT c) -> bool {
-                return c == 0x20 || c == 0x21 || (c >= 0x23 && c <= 0x5b) ||
-                (c >= 0x5D && c <= 0x10FFFF);
-            }, Store { }, &StringParserT<CharT>::parseChar));
+            std::make_tuple(IsStringChar{}, Store{}, &StringParserT<CharT>::parseChar));
 }
 
 template<typename CharT>
@@ -992,7 +1034,7 @@ inline ISubParserT<CharT>& StringParserT<CharT>::parseEscapeChar(
                     NoOp { }, &StringParserT<CharT>::parseUnicodeEscapeChar),
             std::make_tuple([](CharT c) -> bool {
                 for(auto e : JSON::LiteralsT<CharT>::string_escapes())
-                if(std::char_traits<CharT>::eq(e,c))return true;
+                    if(std::char_traits<CharT>::eq(e,c))return true;
                 return false;
             }, Store { }, &StringParserT<CharT>::parseChar));
 }

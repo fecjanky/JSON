@@ -29,6 +29,12 @@
     <ClInclude Include="JSONObjects.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="JSONSchema.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="JSONLiterals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="JSONParser.cd" />
