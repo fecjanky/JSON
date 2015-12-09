@@ -18,28 +18,27 @@ namespace JSON {
 
         template<>
         struct Validator<double> {
-            template<typename CharT>
-            const std::basic_string<CharT>& operator()(
-                const std::basic_string<CharT>& rep) const
+            const std::string& operator()(
+                const std::string& rep) const
             {
-                return validate<CharT>(rep);
+                return validate(rep);
             }
 
-            template<typename CharT>
-            std::basic_string<CharT>&& operator()(std::basic_string<CharT>&& rep) const
+            
+            std::string&& operator()(std::string&& rep) const
             {
-                return validate<CharT>(std::move(rep));
+                return validate(std::move(rep));
             }
         private:
-            template<typename CharT, typename StringType>
+            template<typename StringType>
             StringType&& validate(StringType&& str) const
             {
                 double temp{};
-                std::basic_stringstream<CharT> ss(str);
+                std::stringstream ss(str);
                 ss << std::scientific;
                 ss >> temp;
                 if (ss.bad() || ss.fail()
-                    || ss.peek() != std::char_traits<CharT>::eof())
+                    || ss.peek() != std::char_traits<char>::eof())
                     throw ValueError();
                 return std::forward<StringType>(str);
             }
@@ -47,25 +46,25 @@ namespace JSON {
 
         template<>
         struct Validator<nullptr_t> {
-            template<typename CharT>
-            const std::basic_string<CharT>& operator()(
-                const std::basic_string<CharT>& rep) const
+            
+            const std::string& operator()(
+                const std::string& rep) const
             {
-                return validate<CharT>(rep);
+                return validate(rep);
             }
 
-            template<typename CharT>
-            std::basic_string<CharT>&& operator()(std::basic_string<CharT>&& rep) const
+            
+            std::string&& operator()(std::string&& rep) const
             {
-                return validate<CharT>(std::move(rep));
+                return validate(std::move(rep));
             }
         private:
-            template<typename CharT, typename StringType>
+            template<typename StringType>
             StringType&& validate(StringType&& str) const
             {
                 if (str
                     != std::remove_reference_t<StringType>(
-                        LiteralsT<CharT>::value_null()))
+                        Literals::value_null()))
                     throw ValueError();
                 return std::forward<StringType>(str);
             }
@@ -73,65 +72,59 @@ namespace JSON {
 
         template<>
         struct Validator<bool> {
-            template<typename CharT>
-            const std::basic_string<CharT>& operator()(
-                const std::basic_string<CharT>& rep) const
+            
+            const std::string& operator()(
+                const std::string& rep) const
             {
-                return validate<CharT>(rep);
+                return validate(rep);
             }
 
-            template<typename CharT>
-            std::basic_string<CharT>&& operator()(std::basic_string<CharT>&& rep) const
+            
+            std::string&& operator()(std::string&& rep) const
             {
-                return validate<CharT>(std::move(rep));
+                return validate(std::move(rep));
             }
         private:
-            template<typename CharT, typename StringType>
+            template<typename StringType>
             StringType&& validate(StringType&& str) const
             {
                 if (str
-                    != std::basic_string < CharT
-                    >(LiteralsT<CharT>::value_false()) && str
-                    != std::basic_string<CharT>(LiteralsT<CharT>::value_true()))
+                    != std::basic_string < char
+                    >(Literals::value_false()) && str
+                    != std::string(Literals::value_true()))
                     throw ValueError();
                 return std::forward<StringType>(str);
             }
         };
 
-        template<typename CharT>
-        std::basic_string<CharT> to_string(bool b)
+        std::string to_string(bool b)
         {
             if (b)
-                return std::basic_string<CharT>(LiteralsT<CharT>::value_true());
+                return std::string(Literals::value_true());
             else
-                return std::basic_string<CharT>(LiteralsT<CharT>::value_false());
+                return std::string(Literals::value_false());
         }
     }
 
-    template<typename CharT>
-    class ObjectT : public IAggregateObjectT<CharT> {
+    
+    class Object : public IAggregateObject {
     public:
-        using StringType = std::basic_string<CharT>;
-        using OstreamT = std::basic_ostream<CharT>;
+        using StringType = IAggregateObject::StringType;
+        using OstreamT = IAggregateObject::OstreamT;
+        using IObjectPtr = IAggregateObject::IObjectPtr;
+        using IObject = IAggregateObject::IObject;
         using Key = StringType;
-        using Value = JSON::IObjectPtrT<CharT>;
-        using type = std::unordered_map<Key, Value>;
+        using Value = IObjectPtr;
         using Entry = std::pair<const Key, Value>;
-        using Literals = JSON::LiteralsT<CharT>;
-        using IObjectT = JSON::IObjectT<CharT>;
-        using IObjectPtr = JSON::IObjectPtrT<CharT>;
+        using Container = std::unordered_map<Key, Value>;
+        using Literals = JSON::Literals;
+        
 
-        ObjectT()
+        Object()
         {
         }
 
-        template<typename ... EntryT>
-        ObjectT(EntryT&&... list)
-        {
-            emplace_entries(std::forward<EntryT>(list)...);
-        }
-
-        IObjectT& operator[](const StringType& key) override
+        IObject& operator[](const StringType& key) override
         {
             auto obj = values.find(key);
             if (obj == values.end())
@@ -139,7 +132,7 @@ namespace JSON {
             return *obj->second;
         }
 
-        const IObjectT& operator[](const StringType& key) const override
+        const IObject& operator[](const StringType& key) const override
         {
             auto obj = values.find(key);
             if (obj == values.end())
@@ -147,12 +140,12 @@ namespace JSON {
             return *obj->second;
         }
 
-        IObjectT& operator[](size_t index) override
+        IObject& operator[](size_t index) override
         {
             throw TypeError();
         }
 
-        const IObjectT& operator[](size_t index) const override
+        const IObject& operator[](size_t index) const override
         {
             throw TypeError();
         }
@@ -162,18 +155,11 @@ namespace JSON {
             throw TypeError();
         }
 
-        const type& getValues() const
+        const Container& getValues() const
         {
             return values;
         }
 
-        template<typename ... Entries>
-        void emplace_entries(Entries&&... entries)
-        {
-            check_insert(std::forward<Entries>(entries)...);
-            values.reserve(sizeof...(Entries));
-            emplace_impl(std::forward<Entries>(entries)...);
-        }
 
         void emplace(IObjectPtr && obj) override
         {
@@ -182,12 +168,13 @@ namespace JSON {
 
         void emplace(StringType&& name, IObjectPtr && obj) override
         {
-            emplace_entries(Entry(std::move(name), std::move(obj)));
+            if (values.find(name) != values.end())
+                throw AttributeNotUnique();
+            values.emplace(std::move(name), std::move(obj));
         }
 
         void serialize(StringType&& indentation, OstreamT& os) const override
         {
-            using Literals = LiteralsT<CharT>;
             os << Literals::newline << indentation << Literals::begin_object
                 << Literals::newline;
             indentation.push_back(Literals::space);
@@ -212,7 +199,6 @@ namespace JSON {
         }
 
         void serialize(OstreamT& os) const override {
-            using Literals = LiteralsT<CharT>;
             os << Literals::begin_object;
             for (auto i = values.begin(); i != values.end();) {
                 os << Literals::quotation_mark << i->first
@@ -226,72 +212,39 @@ namespace JSON {
         }
 
     private:
-
-        void emplace_impl()
-        {
-        }
-        void check_insert()
-        {
-        }
-
-        template<typename FirstEntry, typename ... Entries>
-        std::enable_if_t<std::is_same<FirstEntry, Entry>::value> check_insert(
-            FirstEntry&& e, Entries&&... rest)
-        {
-            if (values.find(e.first) != values.end())
-                throw AttributeNotUnique();
-            check_insert(std::forward<Entries>(rest)...);
-        }
-
-        template<typename FirstEntry, typename ... Entries>
-        std::enable_if_t<std::is_same<FirstEntry, Entry>::value> emplace_impl(
-            FirstEntry&& e, Entries&&... rest)
-        {
-            values.emplace(e.first, std::move(e.second));
-            emplace_impl(std::forward<Entries>(rest)...);
-        }
-
-        type values;
+        Container values;
     };
 
-    template<typename CharT>
-    class ArrayT : public IAggregateObjectT<CharT> {
+    
+    class Array : public IAggregateObject {
     public:
+        using StringType = IAggregateObject::StringType;
+        using OstreamT = IAggregateObject::OstreamT;
+        using IObjectPtr = IAggregateObject::IObjectPtr;
+        using IObject = IAggregateObject::IObject;
+        using Value = IObjectPtr;
+        using Container = std::vector<Value>;
+        using Literals = JSON::Literals;
 
-        using IObjectT = JSON::IObjectT<CharT>;
-        using IObjectPtrT = JSON::IObjectPtrT<CharT>;
-        using StringType = std::basic_string<CharT>;
-        using OstreamT = std::basic_ostream<CharT>;
-        using Value = IObjectPtrT;
-        using type = std::vector<Value>;
-        using Literals = JSON::LiteralsT<CharT>;
-
-        ArrayT()
+        Array()
         {
         }
 
-        template<typename ... ObjT>
-        ArrayT(std::unique_ptr<ObjT>&&... objs)
-        {
-            values.reserve(sizeof...(ObjT));
-            emplace_impl(std::move(objs)...);
-        }
-
-        IObjectT& operator[](const StringType& key) override {
+        IObject& operator[](const StringType& key) override {
             throw TypeError();
         }
 
-        const IObjectT& operator[](const StringType& key) const override {
+        const IObject& operator[](const StringType& key) const override {
             throw TypeError();
         }
 
-        IObjectT& operator[](size_t index) override {
+        IObject& operator[](size_t index) override {
             if (index >= values.size())
                 throw OutOfRange();
             return *values[index];
         }
 
-        const IObjectT& operator[](size_t index) const override {
+        const IObject& operator[](size_t index) const override {
             if (index >= values.size())
                 throw OutOfRange();
             return *values[index];
@@ -301,19 +254,19 @@ namespace JSON {
             throw TypeError();
         }
 
-        type& getValues() {
+        Container& getValues() {
             return values;
         }
 
-        const type& getValues() const {
+        const Container& getValues() const {
             return values;
         }
 
-        void emplace(IObjectPtrT&& obj) override {
+        void emplace(IObjectPtr&& obj) override {
             values.emplace_back(std::move(obj));
         }
 
-        void emplace(StringType&& name, IObjectPtrT&& obj) override {
+        void emplace(StringType&& name, IObjectPtr&& obj) override {
             throw AggregateTypeError();
         }
 
@@ -340,42 +293,33 @@ namespace JSON {
         }
 
     private:
-        void emplace_impl() {}
-        template<typename FirstObj, typename... Objs>
-        std::enable_if_t<std::is_same<std::decay_t<FirstObj>, Value>::value>
-            emplace_impl(FirstObj&& f, Objs&&... rest) {
-            values.emplace_back(std::move(f));
-            emplace_impl(std::forward<Objs>(rest)...);
-        }
-
-        type values;
+        Container values;
     };
 
-    template<typename CharT>
-    class BuiltInT : public IObjectT<CharT> {
+    class BuiltIn : public IObject {
     public:
 
-        using IObjectT = JSON::IObjectT<CharT>;
-        using IObjectPtrT = JSON::IObjectPtrT<CharT>;
-        using StringType = std::basic_string<CharT>;
-        using OstreamT = std::basic_ostream<CharT>;
+        using StringType = IObject::StringType;
+        using OstreamT = IObject::OstreamT;
+        using IObjectPtr = IObject::IObjectPtr;
+        using Literals = JSON::Literals;
 
-        IObjectT& operator[](const StringType& key) override
+        IObject& operator[](const StringType& key) override
         {
             throw TypeError();
         }
 
-        const IObjectT& operator[](const StringType& key) const override
+        const IObject& operator[](const StringType& key) const override
         {
             throw TypeError();
         }
 
-        IObjectT& operator[](size_t index) override
+        IObject& operator[](size_t index) override
         {
             throw TypeError();
         }
 
-        const IObjectT& operator[](size_t index) const override
+        const IObject& operator[](size_t index) const override
         {
             throw TypeError();
         }
@@ -394,40 +338,42 @@ namespace JSON {
         }
 
     protected:
-        BuiltInT() :
+        BuiltIn() :
             value{}
         {
         }
-        BuiltInT(const StringType& s) :
+        BuiltIn(const StringType& s) :
             value{ s }
         {
         }
-        BuiltInT(StringType&& s) :
+        BuiltIn(StringType&& s) :
             value{ std::move(s) }
         {
         }
         StringType value;
     };
 
-    template<typename CharT>
-    class BoolT : public BuiltInT<CharT> {
-    public:
-        using StringType = std::basic_string<CharT>;
 
-        explicit BoolT(bool b = false) :
-            BuiltInT<CharT>(impl::to_string<CharT>(b)), nativeValue{ b }
+    class Bool : public BuiltIn {
+    public:
+
+        using StringType = BuiltIn::StringType;
+        using Literals = JSON::Literals;
+
+        explicit Bool(bool b = false) :
+            BuiltIn(impl::to_string(b)), nativeValue{ b }
         {
         }
-        explicit BoolT(const StringType& s) :
-            BuiltInT<CharT>(impl::Validator<bool> { }(s))
+        explicit Bool(const StringType& s) :
+            BuiltIn(impl::Validator<bool> { }(s))
         {
         }
-        explicit BoolT(StringType&& s) :
-            BuiltInT<CharT>(impl::Validator<bool> { }(std::move(s)))
+        explicit Bool(StringType&& s) :
+            BuiltIn(impl::Validator<bool> { }(std::move(s)))
         {
         }
-        explicit BoolT(const CharT * s) :
-            BoolT(StringType(s))
+        explicit Bool(const char * s) :
+            Bool(StringType(s))
         {
         }
         bool getNativeValue() const noexcept
@@ -438,69 +384,67 @@ namespace JSON {
         bool nativeValue;
     };
 
-    template<typename CharT>
-    class TrueT : public BoolT<CharT> {
+    
+    class True : public Bool {
     public:
-        using StringType = std::basic_string<CharT>;
+        using StringType = Bool::StringType;
 
-        TrueT() :
-            BoolT<CharT>(LiteralsT<CharT>::value_true())
+        True() :
+            Bool(Literals::value_true())
         {
         }
-        explicit TrueT(const StringType& s) :
-            BoolT<CharT>(s)
+        explicit True(const StringType& s) :
+            Bool(s)
         {
         }
-        explicit TrueT(StringType&& s) :
-            BoolT<CharT>(s)
+        explicit True(StringType&& s) :
+            Bool(std::move(s))
         {
         }
-        static const CharT* Literal()
+        static const char* Literal()
         {
-            return LiteralsT<CharT>::value_true();
+            return Literals::value_true();
         }
     };
 
-    template<typename CharT>
-    class FalseT : public BoolT<CharT> {
+    class False : public Bool{
     public:
-        using StringType = std::basic_string<CharT>;
+        using StringType = Bool::StringType;
 
-        FalseT() :
-            BoolT<CharT>(LiteralsT<CharT>::value_false())
+        False() :
+            Bool(Literals::value_false())
         {
         }
         ;
-        explicit FalseT(const StringType& s) :
-            BoolT<CharT>(s)
+        explicit False(const StringType& s) :
+            Bool(s)
         {
         }
-        explicit FalseT(StringType&& s) :
-            BoolT<CharT>(s)
+        explicit False(StringType&& s) :
+            Bool(std::move(s))
         {
         }
-        static const CharT* Literal()
+        static const char* Literal()
         {
-            return LiteralsT<CharT>::value_false();
+            return Literals::value_false();
         }
     };
 
-    template<typename CharT>
-    class StringT : public BuiltInT<CharT> {
+    class String : public BuiltIn {
     public:
-        using StringType = std::basic_string<CharT>;
-        using OstreamT = std::basic_ostream<CharT>;
+        using StringType = BuiltIn::StringType;
+        using OstreamT = BuiltIn::OstreamT;
 
-        StringT() :
-            BuiltInT<CharT>(StringType{})
+        String() :
+            BuiltIn(StringType{})
         {
         }
-        explicit StringT(const StringType& t) :
-            BuiltInT<CharT>(t)
+        explicit String(const StringType& t) :
+            BuiltIn(t)
         {
         }
-        explicit StringT(StringType&& t) :
-            BuiltInT<CharT>(std::move(t))
+        explicit String(StringType&& t) :
+            BuiltIn(std::move(t))
         {
         }
 
@@ -511,29 +455,28 @@ namespace JSON {
 
         void serialize(OstreamT& os) const override
         {
-            os << LiteralsT<CharT>::quotation_mark << this->getValue()
-                << LiteralsT<CharT>::quotation_mark;
+            os << Literals::quotation_mark << this->getValue()
+                << Literals::quotation_mark;
         }
     };
 
-    template<typename CharT>
-    class NumberT : public BuiltInT<CharT> {
+    class Number : public BuiltIn {
     public:
-        using StringType = std::basic_string<CharT>;
+        using StringType = BuiltIn::StringType;
 
-        explicit NumberT(double d = 0.0) :
+        explicit Number(double d = 0.0) :
             nativeValue{ d }
         {
-            std::basic_stringstream<CharT> ss{};
+            std::stringstream ss{};
             ss << std::scientific << d;
             this->value = ss.str();
         }
-        explicit NumberT(const StringType& s) :
-            BuiltInT<CharT>(impl::Validator<double> { }(s))
+        explicit Number(const StringType& s) :
+            BuiltIn(impl::Validator<double> { }(s))
         {
         }
-        explicit NumberT(StringType&& s) :
-            BuiltInT<CharT>(impl::Validator<double> { }(std::move(s)))
+        explicit Number(StringType&& s) :
+            BuiltIn(impl::Validator<double> { }(std::move(s)))
         {
         }
         double getNativeValue() const noexcept
@@ -544,87 +487,52 @@ namespace JSON {
         double nativeValue;
     };
 
-    template<typename CharT>
-    class NullT : public BuiltInT<CharT> {
+    class Null : public BuiltIn {
     public:
-        using StringType = std::basic_string<CharT>;
+        using StringType = BuiltIn::StringType;
 
-        explicit NullT() :
-            BuiltInT<CharT>(StringType(LiteralsT<CharT>::value_null()))
+        explicit Null() :
+            BuiltIn(StringType(Literals::value_null()))
         {
         }
-        explicit NullT(const StringType& s) :
-            BuiltInT<CharT>(impl::Validator<nullptr_t> { }(s))
+        explicit Null(const StringType& s) :
+            BuiltIn(impl::Validator<nullptr_t> { }(s))
         {
         }
-        explicit NullT(StringType&& s) :
-            BuiltInT<CharT>(impl::Validator<nullptr_t> { }(std::move(s)))
+        explicit Null(StringType&& s) :
+            BuiltIn(impl::Validator<nullptr_t> { }(std::move(s)))
         {
         }
         nullptr_t getNativeValue() const noexcept
         {
             return nullptr;
         }
-        static const CharT* Literal()
+        static const char* Literal()
         {
-            return LiteralsT<CharT>::value_null();
+            return Literals::value_null();
         }
     };
 
-    template<typename T> struct IsJSONType : public std::false_type {
+
+    template<typename T,typename B = void> struct IsJSONType : public std::false_type {
     };
-    template<typename C> struct IsJSONType<ObjectT<C>> : public std::true_type {
-        using CharT = C;
-    };
-    template<typename C> struct IsJSONType<ArrayT<C>> : public std::true_type {
-        using CharT = C;
-    };
-    template<typename C> struct IsJSONType<BuiltInT<C>> : public std::true_type {
-        using CharT = C;
-    };
-    template<typename C> struct IsJSONType<BoolT<C>> : public std::true_type {
-        using CharT = C;
-    };
-    template<typename C> struct IsJSONType<TrueT<C>> : public std::true_type {
-        using CharT = C;
-    };
-    template<typename C> struct IsJSONType<FalseT<C>> : public std::true_type {
-        using CharT = C;
-    };
-    template<typename C> struct IsJSONType<StringT<C>> : public std::true_type {
-        using CharT = C;
-    };
-    template<typename C> struct IsJSONType<NumberT<C>> : public std::true_type {
-        using CharT = C;
-    };
-    template<typename C> struct IsJSONType<NullT<C>> : public std::true_type {
-        using CharT = C;
+
+    template<typename T>
+    struct IsJSONType<
+        T, 
+        std::enable_if_t<std::is_convertible<T*, IObject*>::value>
+         > : public std::true_type {
     };
 
     template<typename T, typename ... Args>
-    std::enable_if_t<IsJSONType<T>::value,
-        IObjectPtrT<typename IsJSONType<T>::CharT> > Create(Args&&... args)
+    std::enable_if_t<
+        IsJSONType<T>::value,
+        IObjectPtr> Create(Args&&... args)
     {
-        return IObjectPtrT<typename IsJSONType<T>::CharT>(
-            new T(std::forward<Args>(args)...));
+        return IObjectPtr(new T(std::forward<Args>(args)...));
     }
 
-    template<typename CharT>
-    struct Types {
-        using IObject = IObjectT<CharT>;
-        using IObjectPtr = IObjectPtrT<CharT>;
-        using IAggregateObject = IAggregateObjectT<CharT>;
-        using Object = ObjectT<CharT>;
-        using Array = ArrayT<CharT>;
-        using BuiltIn = BuiltInT<CharT>;
-        using Bool = BoolT<CharT>;
-        using True = TrueT<CharT>;
-        using False = FalseT<CharT>;
-        using String = StringT<CharT>;
-        using Number = NumberT<CharT>;
-        using Null = NullT<CharT>;
-        using Literals = LiteralsT<CharT>;
-    };
+
 }
 
 #endif //JSONOBJECTS_H_INCLUDED__

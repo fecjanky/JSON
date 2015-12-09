@@ -19,54 +19,40 @@
 
 namespace JSON {
 
-template<typename CharT>
-using ObjContainerT = std::vector<typename JSON::Types<CharT>::IObjectPtr>;
+
+using ObjContainer = std::vector<IObjectPtr>;
 
 namespace impl {
 
-template<typename CharT>
-struct IParserT;
-template<typename CharT>
-struct ISubParserT;
-template<typename CharT>
-struct ISubParserStateT;
-template<typename ParserT, typename CharT>
+struct IParser;
+struct ISubParser;
+struct ISubParserState;
+template<typename ParserT>
 class ParserTemplate;
-template<typename CharT>
-class WSParserT;
-template<template<typename > class JSONLiteral, typename CharT>
+class WSParser;
+template<class JSONLiteral>
 class LiteralParser;
-template<typename CharT>
-using NullParserT = LiteralParser<NullT,CharT>;
-template<typename CharT>
-using TrueParserT = LiteralParser<TrueT,CharT>;
-template<typename CharT>
-using FalseParserT = LiteralParser<FalseT,CharT>;
-template<typename CharT>
-class ObjectParserT;
-template<typename CharT>
-class ArrayParserT;
-template<typename CharT>
-class NumberParserT;
-template<typename CharT>
-class StringParserT;
+using NullParser = LiteralParser<Null>;
+using TrueParser = LiteralParser<True>;
+using FalseParser = LiteralParser<False>;
+class ObjectParser;
+class ArrayParser;
+class NumberParser;
+class StringParser;
 
-template<typename CharT>
-using ParserTupleT = std::tuple<
-WSParserT<CharT>,
-ObjectParserT<CharT> ,
-ArrayParserT<CharT> ,
-StringParserT<CharT> ,
-NumberParserT<CharT> ,
-TrueParserT<CharT> ,
-FalseParserT<CharT> ,
-NullParserT<CharT>
+using ParserTuple = std::tuple<
+WSParser,
+ObjectParser,
+ArrayParser,
+StringParser,
+NumberParser,
+TrueParser,
+FalseParser,
+NullParser
 >;
 
-template<typename CharT>
-using ISubParserStatePtrT = std::unique_ptr<ISubParserStateT<CharT>>;
-template<typename CharT>
-using ParserStateStackT = std::stack<ISubParserStatePtrT<CharT>>;
+using ISubParserStatePtr = std::unique_ptr<ISubParserState>;
+using ParserStateStack = std::stack<ISubParserStatePtr>;
 
 struct Exception: public std::exception {
 };
@@ -78,38 +64,29 @@ struct ParsingIncomplete: public impl::Exception {
 };
 
 template<typename JSONLiteral>
-const typename JSONLiteral::CharT* GetLiteral()
+const char* GetLiteral()
 {
     return JSONLiteral::Literal();
 }
 
-template<typename CharT>
-inline bool IsWhitespace(CharT c)
+inline bool IsWhitespace(char c)
 {
-    for (auto w : JSON::LiteralsT<CharT>::whitespace())
-        if (std::char_traits<CharT>::eq(c,w))
+    for (auto w : JSON::Literals::whitespace())
+        if (std::char_traits<char>::eq(c,w))
             return true;
     return false;
 }
 
-template<typename CharT>
-struct ISubParserT {
-    using IParser = IParserT<CharT>;
-    virtual ISubParserT& operator()(IParser& p) = 0;
-    virtual ~ISubParserT() = default;
+struct ISubParser {
+    virtual ISubParser& operator()(IParser& p) = 0;
+    virtual ~ISubParser() = default;
 };
 
-template<typename CharT>
-struct ISubParserStateT {
-    using IParser = IParserT<CharT>;
-    using ISubParser = ISubParserT<CharT>;
-    using ISubParserState = ISubParserStateT<CharT>;
-    using ISubParserStatePtr = ISubParserStatePtrT<CharT>;
-    using IObjectPtr = JSON::IObjectPtrT<CharT>;
 
+struct ISubParserState {
     virtual ISubParser& getParser(IParser& p) = 0;
     virtual IObjectPtr getObject() = 0;
-    virtual ~ISubParserStateT() = default;
+    virtual ~ISubParserState() = default;
 
     template<typename SubParserImpl>
     static typename SubParserImpl::State& Cast(const SubParserImpl&,
@@ -119,74 +96,68 @@ struct ISubParserStateT {
     }
 
     template<typename SubParserT, typename = std::enable_if_t<
-            std::is_base_of<ISubParserT<CharT>, SubParserT>::value> >
-    static ISubParserStatePtrT<CharT> Create(IParserT<CharT>& p)
+            std::is_base_of<ISubParser, SubParserT>::value> >
+    static ISubParserStatePtr Create(IParser& p)
     {
         using State = typename SubParserT::State;
-        return ISubParserStatePtr(new State(p));
+        return ISubParserStatePtr( new State(p) );
     }
     ;
 
 };
 
-template<typename CharT>
-struct IParserT {
+struct IParser {
     struct Exception: public std::exception {
     };
-    virtual CharT getCurrentChar() const noexcept = 0;
-    virtual ObjContainerT<CharT>& getObjects() noexcept = 0;
-    virtual ParserTupleT<CharT>& getParsers() noexcept = 0;
-    virtual ParserStateStackT<CharT>& getStateStack() noexcept = 0;
-    virtual ISubParserStatePtrT<CharT>& getLastState() noexcept = 0;
+    virtual char getCurrentChar() const noexcept = 0;
+    virtual ObjContainer& getObjects() noexcept = 0;
+    virtual ParserTuple& getParsers() noexcept = 0;
+    virtual ParserStateStack& getStateStack() noexcept = 0;
+    virtual ISubParserStatePtr& getLastState() noexcept = 0;
 protected:
-    virtual ~IParserT() = default;
+    virtual ~IParser() = default;
 };
 
-template<typename ParserT, typename CharT>
-class ParserTemplate: public ISubParserT<CharT> {
+template<typename ParserT>
+class ParserTemplate: public ISubParser {
 public:
-    using StatePtr = ISubParserT<CharT>& (ParserT::*)(ISubParserStateT<CharT>&,IParserT<CharT>&);
-    using ISubParser = ISubParserT<CharT>;
-    using ISubParserState = ISubParserStateT<CharT>;
-    using IParser = IParserT<CharT>;
+    using StatePtr = ISubParser& (ParserT::*)(ISubParserState&,IParser&);
 
-    class State: public ISubParserStateT<CharT> {
+    class State: public ISubParserState {
     public:
-        using ISubParser = ISubParserT<CharT>;
-        using IParser = IParserT<CharT>;
         explicit State(IParser& p);
         ISubParser& getParser(IParser& p) override;
-        IObjectPtrT<CharT> getObject() override;
+        IObjectPtr getObject() override;
 
         StatePtr stateFunc;
     };
 
-    ISubParserT<CharT>& operator()(IParserT<CharT>& p) override;
-    ISubParserT<CharT>& nextParser(IParserT<CharT>& p) noexcept;
+    ISubParser& operator()(IParser& p) override;
+    ISubParser& nextParser(IParser& p) noexcept;
 };
 
-template<typename Parser, typename ParserState, typename CharT>
-static ISubParserT<CharT>& StateTransition(Parser& current_parser,
-        ParserState& state, IParserT<CharT>& parser)
+template<typename Parser, typename ParserState>
+static ISubParser& StateTransition(Parser& current_parser,
+        ParserState& state, IParser& parser)
 {
     throw typename Parser::Exception();
 }
 
-template<typename Parser, typename ParserState, typename CharT,
+template<typename Parser, typename ParserState,
         typename Predicate, typename Action, typename NextState,
         typename ... Predicates, typename ... Actions, typename ... NextStates>
-static ISubParserT<CharT>& StateTransition(Parser& current_parser,
-        ParserState& s, IParserT<CharT>& parser,
+static ISubParser& StateTransition(Parser& current_parser,
+        ParserState& s, IParser& parser,
         std::tuple<Predicate, Action, NextState>&& p,
         std::tuple<Predicates, Actions, NextStates>&&... ps)
 {
     static_assert(
-            std::is_base_of<ISubParserT<CharT>, Parser>::value &&
-            std::is_base_of<ISubParserStateT<CharT>, ParserState>::value,
+            std::is_base_of<ISubParser, Parser>::value &&
+            std::is_base_of<ISubParserState, ParserState>::value,
             "State transition not possible");
 
     if (std::get<0>(p)(parser.getCurrentChar())) {
-        auto& state = ISubParserStateT<CharT>::Cast(current_parser, s);
+        auto& state = ISubParserState::Cast(current_parser, s);
         state.stateFunc = std::get<2>(p);
         return std::get<1>(p)(current_parser, state, parser);
     } else
@@ -195,20 +166,20 @@ static ISubParserT<CharT>& StateTransition(Parser& current_parser,
 }
 
 struct NoOp {
-    template<typename ParserT, typename StateT, typename CharT>
-    ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
-            IParserT<CharT>&p)
+    template<typename ParserT, typename StateT>
+    ISubParser& operator()(ParserT& current_parser, StateT& s,
+            IParser&p)
     {
         return current_parser;
     }
 };
 
 struct Store {
-    template<typename ParserT, typename StateT, typename CharT>
-    ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
-            IParserT<CharT>&p)
+    template<typename ParserT, typename StateT>
+    ISubParser& operator()(ParserT& current_parser, StateT& s,
+            IParser&p)
     {
-        static_assert(std::is_same<std::basic_string<CharT>, decltype(s.token)>::value,
+        static_assert(std::is_same<std::string, decltype(s.token)>::value,
             "State member token is not type of string");
         s.token.push_back(p.getCurrentChar());
         return current_parser;
@@ -217,20 +188,20 @@ struct Store {
 
 template<typename NextParserT>
 struct Call {
-    template<typename ParserT, typename StateT, typename CharT>
-    ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
-            IParserT<CharT>&p)
+    template<typename ParserT, typename StateT>
+    ISubParser& operator()(ParserT& current_parser, StateT& s,
+            IParser&p)
     {
         p.getStateStack().push(
-                ISubParserStateT<CharT>::template Create<NextParserT>(p));
+                ISubParserState::template Create<NextParserT>(p));
         return std::get<NextParserT>(p.getParsers())(p);
     }
 };
 
 struct Dispatch {
-    template<typename ParserT, typename StateT, typename CharT>
-    ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
-            IParserT<CharT>&p)
+    template<typename ParserT, typename StateT>
+    ISubParser& operator()(ParserT& current_parser, StateT& s,
+            IParser&p)
     {
         return DispatchFirstSymbol(p, p.getParsers());
     }
@@ -238,11 +209,12 @@ struct Dispatch {
 
 template<typename JSONT>
 struct Return {
-    template<typename ParserT, typename StateT, typename CharT>
-    ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
-            IParserT<CharT>&p)
+    template<typename ParserT, typename StateT>
+    ISubParser& operator()(ParserT& current_parser, StateT& s,
+            IParser&p)
     {
-        static_assert(std::is_same<JSON::IObjectPtrT<CharT>, decltype(s.object)>::value,
+        static_assert(std::is_same<JSON::IObjectPtr, 
+            decltype(s.object)>::value,
             "State member object is not type of Object pointer");
         s.object = JSON::Create<JSONT>(std::move(s.token));
         return current_parser.nextParser(p);
@@ -251,11 +223,12 @@ struct Return {
 
 template<typename JSONT>
 struct CallBack {
-    template<typename ParserT, typename StateT, typename CharT>
-    ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
-            IParserT<CharT>&p)
+    template<typename ParserT, typename StateT>
+    ISubParser& operator()(ParserT& current_parser, StateT& s,
+            IParser&p)
     {
-        static_assert(std::is_same<JSON::IObjectPtrT<CharT>, decltype(s.object)>::value,
+        static_assert(std::is_same<JSON::IObjectPtr, 
+            decltype(s.object)>::value,
             "State member object is not type of Object pointer");
         s.object = JSON::Create<JSONT>(std::move(s.token));
         return current_parser.nextParser(p)(p);
@@ -263,45 +236,40 @@ struct CallBack {
 };
 
 struct NoOpReturn {
-    template<typename ParserT, typename StateT, typename CharT>
-    ISubParserT<CharT>& operator()(ParserT& current_parser, StateT& s,
-            IParserT<CharT>&p)
+    template<typename ParserT, typename StateT>
+    ISubParser& operator()(ParserT& current_parser, StateT& s,
+            IParser&p)
     {
         return current_parser.nextParser(p);
     }
 };
 
-template<typename CharT, CharT ... Literal>
+template<char... Literal>
 class IsLiteral {
 public:
-    bool operator()(CharT c)
+    bool operator()(char c)
     {
         return eval(c, Literal...);
     }
 private:
-    bool eval(CharT c)
+    bool eval(char c)
     {
         return false;
     }
     template<typename Char, typename ... Chars>
-    bool eval(CharT c, Char C, Chars ... Cs)
+    bool eval(char c, Char C, Chars ... Cs)
     {
-        if (std::char_traits<Char>::eq(c,C))
+        if (std::char_traits<char>::eq(c,C))
             return true;
         else
             return eval(c, Cs...);
     }
 };
 
-template<typename T>
-struct TD;
-template<typename T,T val>
-struct TDv;
-
 struct IsStringChar {
-    template<typename CharT>
-    bool operator()(CharT c) {
-        using ct = std::char_traits<CharT>;
+    
+    bool operator()(char c) {
+        using ct = std::char_traits<char>;
         // FIXME: find correct logic for checking string chars
         return  ct::eq(c, ct::to_char_type(0x20)) || 
                 ct::eq(c, ct::to_char_type(0x21)) || 
@@ -310,28 +278,28 @@ struct IsStringChar {
                 gt_eq(c, ct::to_char_type(0x5D));
     }
 private:
-    template<typename CharT>
-    static bool lt_eq(CharT lhs,CharT rhs) {
-        using ct = std::char_traits<CharT>;
+    
+    static bool lt_eq(char lhs,char rhs) {
+        using ct = std::char_traits<char>;
         return ct::lt(lhs, rhs) || ct::eq(lhs,rhs);
     }
 
-    template<typename CharT>
-    static bool gt(CharT lhs, CharT rhs) {
-        using ct = std::char_traits<CharT>;
+    
+    static bool gt(char lhs, char rhs) {
+        using ct = std::char_traits<char>;
         return !ct::lt(lhs, rhs) && !ct::eq(lhs, rhs);
     }
 
-    template<typename CharT>
-    static bool gt_eq(CharT lhs, CharT rhs) {
-        using ct = std::char_traits<CharT>;
+    
+    static bool gt_eq(char lhs, char rhs) {
+        using ct = std::char_traits<char>;
         return !ct::lt(lhs, rhs);
     }
 };
 
 struct IsDigit {
-    template<typename CharT>
-    bool operator()(CharT c)
+    
+    bool operator()(char c)
     {
         return std::isdigit(c, std::locale { });
     }
@@ -339,104 +307,94 @@ struct IsDigit {
 
 class Others {
 public:
-    template<typename CharT>
-    bool operator()(CharT c)
+    
+    bool operator()(char c)
     {
         return true;
     }
 };
 
 struct CheckSymbol {
-    template<typename CharT>
-    bool operator()(CharT c, const CharT* s)
+    
+    bool operator()(char c, const char* s)
     {
-        using ct = std::char_traits<CharT>;
+        using ct = std::char_traits<char>;
         return ct::find(s, ct::length(s), c) != nullptr;
     }
-    template<typename CharT>
-    bool operator()(CharT c, CharT s)
+    
+    bool operator()(char c, char s)
     {
-        return std::char_traits<CharT>::eq(c, s);
+        return std::char_traits<char>::eq(c, s);
     }
 };
 
-template<typename CharT>
-ISubParserT<CharT>& CheckStartSymbol(IParserT<CharT>& IParser)
+ISubParser& CheckStartSymbol(IParser& IParser)
 {
     throw InvalidStartingSymbol();
 }
 
-template<typename CharT, typename SubParserT, typename ... SubParsersT>
-ISubParserT<CharT>& CheckStartSymbol(IParserT<CharT>& parser,
+template< typename SubParserT, typename ... SubParsersT>
+ISubParser& CheckStartSymbol(IParser& parser,
         SubParserT& subparser, SubParsersT&... subparsers)
 {
-    if (!std::is_same<WSParserT<CharT>, std::decay_t<SubParserT>> { }
+    if (!std::is_same<WSParser, std::decay_t<SubParserT>> { }
             && CheckSymbol { }(parser.getCurrentChar(),
                     subparser.getFirstSymbolSet())) {
         parser.getStateStack().push(
-                ISubParserStateT<CharT>::template Create<SubParserT>(parser));
+                ISubParserState::Create<SubParserT>(parser));
         return subparser(parser);
     } else
         return CheckStartSymbol(parser, subparsers...);
 }
 
-template<typename CharT, typename ... Parsers>
-ISubParserT<CharT>& DispatchFirstSymbol(IParserT<CharT>& p,
+template< typename ... Parsers>
+ISubParser& DispatchFirstSymbol(IParser& p,
         std::tuple<Parsers...>& parsers)
 {
     return CheckStartSymbol(p, std::get<Parsers>(parsers)...);
 }
 
-template<template<typename > class JSONLiteral, typename CharT>
-class LiteralParser: public ParserTemplate<LiteralParser<JSONLiteral, CharT>,
-        CharT> {
+template<class JSONLiteral>
+class LiteralParser: public ParserTemplate<LiteralParser<JSONLiteral>> {
 public:
-    using Base = ParserTemplate<LiteralParser<JSONLiteral,CharT>,CharT>;
-    using MyJSONType = JSONLiteral<CharT>;
-    using BaseStateT = typename Base::State;
-    using ISubParser = ISubParserT<CharT>;
-    using ISubParserState = ISubParserStateT<CharT>;
-    using IParser = IParserT<CharT>;
-    using StatePtr = typename Base::StatePtr;
+    using Base = ParserTemplate<LiteralParser<JSONLiteral>>;
+    using MyJSONType = JSONLiteral;
+    using BaseState = Base::State;
+    using StatePtr = Base::StatePtr;
 
-    struct State: public BaseStateT {
-        using Base = BaseStateT;
-        State(IParserT<CharT>& p);
-        IObjectPtrT<CharT> getObject() override;
+    struct State: public BaseState {
+        using Base = BaseState;
+        State(IParser& p);
+        IObjectPtr getObject() override;
         size_t current_pos;
     };
 
-    static CharT getFirstSymbolSet();
+    static char getFirstSymbolSet();
     static StatePtr getInitState();
 
 private:
-    ISubParserT<CharT>& check(ISubParserStateT<CharT>& state,
-            IParserT<CharT>& p);
+    ISubParser& check(ISubParserState& state,IParser& p);
 };
 
-template<typename CharT>
-class NumberParserT: public ParserTemplate<NumberParserT<CharT>, CharT> {
+class NumberParser: public ParserTemplate<NumberParser> {
 public:
     struct Exception: impl::Exception {
     };
-    using MyJSONType = JSON::NumberT<CharT>;
-    using Base = ParserTemplate<NumberParserT<CharT>,CharT>;
-    using BaseStateT = typename Base::State;
-    using ISubParser = ISubParserT<CharT>;
-    using ISubParserState = ISubParserStateT<CharT>;
-    using IParser = IParserT<CharT>;
-    using StatePtr = typename Base::StatePtr;
+    using MyJSONType = JSON::Number;
+    using Base = ParserTemplate<NumberParser>;
+    using BaseState = Base::State;
+    using StatePtr = Base::StatePtr;
 
-    struct State: public BaseStateT {
-        using BaseStateT::BaseStateT;
+    struct State: public BaseState {
+        using BaseState::BaseState;
 
-        IObjectPtrT<CharT> getObject() override;
+        IObjectPtr getObject() override;
 
-        IObjectPtrT<CharT> object;
-        std::basic_string<CharT> token;
+        IObjectPtr object;
+        std::string token;
     };
 
-    static const CharT* getFirstSymbolSet();
+    static const char* getFirstSymbolSet();
     static StatePtr getInitState();
 
 private:
@@ -452,27 +410,23 @@ private:
     ISubParser& exponentPart(ISubParserState& state, IParser& p);
 };
 
-template<typename CharT>
-class ObjectParserT: public ParserTemplate<ObjectParserT<CharT>, CharT> {
+class ObjectParser: public ParserTemplate<ObjectParser> {
 public:
     struct Exception: impl::Exception {
     };
-    using MyJSONType = JSON::ObjectT<CharT>;
-    using ISubParser = ISubParserT<CharT>;
-    using ISubParserState = ISubParserStateT<CharT>;
-    using IParser = IParserT<CharT>;
-    using Base = ParserTemplate<ObjectParserT<CharT>,CharT>;
-    using StatePtr = typename Base::StatePtr;
+    using MyJSONType = JSON::Object;
+    using Base = ParserTemplate<ObjectParser>;
+    using StatePtr = Base::StatePtr;
 
     struct State: public Base::State {
         explicit State(IParser& p);
-        IObjectPtrT<CharT> getObject() override;
+        IObjectPtr getObject() override;
 
-        IObjectPtrT<CharT> object;
-        std::basic_string<CharT> currentKey;
+        IObjectPtr object;
+        std::string currentKey;
     };
 
-    static CharT getFirstSymbolSet();
+    static char getFirstSymbolSet();
     static StatePtr getInitState();
 
 private:
@@ -485,29 +439,24 @@ private:
     ISubParser& nextMember(ISubParserState& s, IParser& p);
 };
 
-template<typename CharT>
-class ArrayParserT: public ParserTemplate<ArrayParserT<CharT>, CharT> {
+class ArrayParser: public ParserTemplate<ArrayParser> {
 public:
 
     struct Exception: impl::Exception {
     };
-    using MyJSONType = JSON::ArrayT<CharT>;
-    using Base = ParserTemplate<ArrayParserT<CharT>,CharT>;
-    using BaseStateT = typename Base::State;
-    using ISubParser = ISubParserT<CharT>;
-    using ISubParserState = ISubParserStateT<CharT>;
-    using IParser = IParserT<CharT>;
-    using StatePtr = typename Base::StatePtr;
+    using MyJSONType = JSON::Array;
+    using Base = ParserTemplate<ArrayParser>;
+    using BaseState = Base::State;
+    using StatePtr = Base::StatePtr;
 
-    struct State: public BaseStateT {
-        using IParser = IParserT<CharT>;
+    struct State: public BaseState {
         explicit State(IParser& p);
-        IObjectPtrT<CharT> getObject() override;
+        IObjectPtr getObject() override;
 
-        IObjectPtrT<CharT> object;
+        IObjectPtr object;
     };
 
-    static CharT getFirstSymbolSet();
+    static char getFirstSymbolSet();
     static StatePtr getInitState();
 
 private:
@@ -517,27 +466,23 @@ private:
     ISubParser& nextMember(ISubParserState& s, IParser& p);
 };
 
-template<typename CharT>
-class StringParserT: public ParserTemplate<StringParserT<CharT>, CharT> {
+class StringParser: public ParserTemplate<StringParser> {
 public:
     struct Exception: impl::Exception {
     };
-    using MyJSONType = JSON::StringT<CharT>;
-    using Base = ParserTemplate<StringParserT<CharT>,CharT>;
-    using BaseStateT = typename Base::State;
-    using ISubParser = ISubParserT<CharT>;
-    using ISubParserState = ISubParserStateT<CharT>;
-    using IParser = IParserT<CharT>;
-    using StatePtr = typename Base::StatePtr;
+    using MyJSONType = JSON::String;
+    using Base = ParserTemplate<StringParser>;
+    using BaseState = Base::State;
+    using StatePtr = Base::StatePtr;
 
-    struct State: public BaseStateT {
-        using BaseStateT::BaseStateT;
-        IObjectPtrT<CharT> getObject() override;
-        IObjectPtrT<CharT> object;
-        std::basic_string<CharT> token;
+    struct State: public BaseState {
+        using BaseState::BaseState;
+        IObjectPtr getObject() override;
+        IObjectPtr object;
+        std::string token;
     };
 
-    static CharT getFirstSymbolSet();
+    static char getFirstSymbolSet();
     static StatePtr getInitState();
 
 private:
@@ -547,21 +492,17 @@ private:
     ISubParser& parseUnicodeEscapeChar(ISubParserState& s, IParser& p);
 };
 
-template<typename CharT>
-class WSParserT: public ParserTemplate<WSParserT<CharT>, CharT> {
+class WSParser: public ParserTemplate<WSParser> {
 public:
-    using Base = ParserTemplate<WSParserT<CharT>,CharT>;
-    using BaseStateT = typename Base::State;
-    using ISubParser = ISubParserT<CharT>;
-    using ISubParserState = ISubParserStateT<CharT>;
-    using IParser = IParserT<CharT>;
-    using StatePtr = typename Base::StatePtr;
+    using Base = ParserTemplate<WSParser>;
+    using BaseState = Base::State;
+    using StatePtr = Base::StatePtr;
 
-    struct State: public BaseStateT {
-        using BaseStateT::BaseStateT;
+    struct State: public BaseState {
+        using BaseState::BaseState;
     };
 
-    static const CharT* getFirstSymbolSet();
+    static const char* getFirstSymbolSet();
     static StatePtr getInitState();
 
 private:
@@ -572,17 +513,17 @@ private:
 ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////
 
-template<typename ParserT, typename CharT>
-inline ISubParserT<CharT>& ParserTemplate<ParserT, CharT>::operator()(
+template<typename ParserT>
+inline ISubParser& ParserTemplate<ParserT>::operator()(
         IParser& p)
 {
     auto& s = ISubParserState::Cast(*this, *p.getStateStack().top());
     return (static_cast<ParserT*>(this)->*(s.stateFunc))(s, p);
 }
 
-template<typename ParserT, typename CharT>
-inline ISubParserT<CharT>&
-ParserTemplate<ParserT, CharT>::nextParser(IParser& p) noexcept
+template<typename ParserT>
+inline ISubParser&
+ParserTemplate<ParserT>::nextParser(IParser& p) noexcept
 {
     p.getLastState() = std::move(p.getStateStack().top());
     p.getStateStack().pop();
@@ -595,45 +536,45 @@ ParserTemplate<ParserT, CharT>::nextParser(IParser& p) noexcept
     return p.getStateStack().top()->getParser(p);
 }
 
-template<typename ParserT, typename CharT>
-inline IObjectPtrT<CharT> ParserTemplate<ParserT, CharT>::State::getObject()
+template<typename ParserT>
+inline IObjectPtr ParserTemplate<ParserT>::State::getObject()
 {
     return nullptr;
 }
 
-template<typename ParserT, typename CharT>
-inline ISubParserT<CharT>&
-ParserTemplate<ParserT, CharT>::State::getParser(IParser& p)
+template<typename ParserT>
+inline ISubParser&
+ParserTemplate<ParserT>::State::getParser(IParser& p)
 {
     return std::get<ParserT>(p.getParsers());
 }
 
-template<typename ParserT, typename CharT>
-inline ParserTemplate<ParserT, CharT>::State::State(IParser& p) :
+template<typename ParserT>
+inline ParserTemplate<ParserT>::State::State(IParser& p) :
         stateFunc { ParserT::getInitState() }
 {
 }
 
-template<template<typename > class JSONLiteral, typename CharT>
-inline LiteralParser<JSONLiteral, CharT>::State::State(IParser& p) :
+template<class JSONLiteral>
+inline LiteralParser<JSONLiteral>::State::State(IParser& p) :
         Base(p), current_pos { }
 {
 }
 
-template<template<typename > class JSONLiteral, typename CharT>
-inline IObjectPtrT<CharT> LiteralParser<JSONLiteral, CharT>::State::getObject()
+template<class JSONLiteral>
+inline IObjectPtr LiteralParser<JSONLiteral>::State::getObject()
 {
-    return JSON::Create<JSONLiteral<CharT>>();
+    return JSON::Create<JSONLiteral>();
 }
 
-template<template<typename > class JSONLiteral, typename CharT>
-inline ISubParserT<CharT>&
-LiteralParser<JSONLiteral, CharT>::check(ISubParserState& s, IParser& p)
+template<class JSONLiteral>
+inline ISubParser&
+LiteralParser<JSONLiteral>::check(ISubParserState& s, IParser& p)
 {
     auto& state = ISubParserState::Cast(*this, s);
-    using ct = std::char_traits<CharT>;
-    const size_t literal_size = ct::length(GetLiteral<JSONLiteral<CharT>>());
-    if (!ct::eq(GetLiteral<JSONLiteral<CharT>>()[state.current_pos++],
+    using ct = std::char_traits<char>;
+    const size_t literal_size = ct::length(GetLiteral<JSONLiteral>());
+    if (!ct::eq(GetLiteral<JSONLiteral>()[state.current_pos++],
         p.getCurrentChar()))
         throw LiteralException();
     else if (state.current_pos == literal_size) {
@@ -642,194 +583,193 @@ LiteralParser<JSONLiteral, CharT>::check(ISubParserState& s, IParser& p)
         return *this;
 }
 
-template<template<typename > class JSONLiteral, typename CharT>
-inline CharT LiteralParser<JSONLiteral, CharT>::getFirstSymbolSet()
+template<class JSONLiteral>
+inline char LiteralParser<JSONLiteral>::getFirstSymbolSet()
 {
-    return GetLiteral<JSONLiteral<CharT>>()[0];
+    return GetLiteral<JSONLiteral>()[0];
 }
 
-template<template<typename > class JSONLiteral, typename CharT>
-inline typename LiteralParser<JSONLiteral, CharT>::StatePtr LiteralParser<
-        JSONLiteral, CharT>::getInitState()
+template<class JSONLiteral>
+inline typename LiteralParser<JSONLiteral>::StatePtr LiteralParser<JSONLiteral>::getInitState()
 {
     return &LiteralParser::check;
 }
 
-template<typename CharT>
-inline IObjectPtrT<CharT> NumberParserT<CharT>::State::getObject()
+
+inline IObjectPtr NumberParser::State::getObject()
 {
     return std::move(object);
 }
 
-template<typename CharT>
-inline const CharT* NumberParserT<CharT>::getFirstSymbolSet()
+
+inline const char* NumberParser::getFirstSymbolSet()
 {
-    return LiteralsT<CharT>::begin_number();
+    return Literals::begin_number();
 }
 
-template<typename CharT>
-inline typename NumberParserT<CharT>::StatePtr NumberParserT<CharT>::getInitState()
+
+inline NumberParser::StatePtr NumberParser::getInitState()
 {
-    return &NumberParserT<CharT>::start;
+    return &NumberParser::start;
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& NumberParserT<CharT>::start(ISubParserState& state,
+
+inline ISubParser& NumberParser::start(ISubParserState& state,
         IParser& p)
 {
-    using L = LiteralsT<CharT>;
+    using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<CharT, L::zero> { }, Store { },
-                    &NumberParserT<CharT>::startingZero),
+            std::make_tuple(IsLiteral<L::zero> { }, Store { },
+                    &NumberParser::startingZero),
             std::make_tuple(IsDigit { }, Store { },
-                    &NumberParserT<CharT>::integerPart),
-            std::make_tuple(IsLiteral<CharT, L::minus> { }, Store { },
-                    &NumberParserT<CharT>::minus));
+                    &NumberParser::integerPart),
+            std::make_tuple(IsLiteral<L::minus> { }, Store { },
+                    &NumberParser::minus));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& NumberParserT<CharT>::minus(ISubParserState& state,
+
+inline ISubParser& NumberParser::minus(ISubParserState& state,
         IParser& p)
 {
-    using L = LiteralsT<CharT>;
+    using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<CharT, L::zero> { }, Store { },
-                    &NumberParserT<CharT>::startingZero),
+            std::make_tuple(IsLiteral<L::zero> { }, Store { },
+                    &NumberParser::startingZero),
             std::make_tuple(IsDigit { }, Store { },
-                    &NumberParserT<CharT>::integerPart));
+                    &NumberParser::integerPart));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& NumberParserT<CharT>::startingZero(
+
+inline ISubParser& NumberParser::startingZero(
         ISubParserState& state, IParser& p)
 {
-    using L = LiteralsT<CharT>;
+    using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<CharT, L::decimal_point> { }, Store { },
-                    &NumberParserT<CharT>::fractionPartStart),
+            std::make_tuple(IsLiteral<L::decimal_point> { }, Store { },
+                    &NumberParser::fractionPartStart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& NumberParserT<CharT>::integerPart(
+
+inline ISubParser& NumberParser::integerPart(
         ISubParserState& state, IParser& p)
 {
-    using L = LiteralsT<CharT>;
+    using L = Literals;
     return StateTransition(*this, state, p,
             std::make_tuple(IsDigit { }, Store { },
-                    &NumberParserT<CharT>::integerPart),
-            std::make_tuple(IsLiteral<CharT, L::decimal_point> { }, Store { },
-                    &NumberParserT<CharT>::fractionPartStart),
-            std::make_tuple(IsLiteral<CharT, L::exponent_upper, L::exponent_lower> { }, 
-                    Store { },&NumberParserT<CharT>::exponentPartStart),
+                    &NumberParser::integerPart),
+            std::make_tuple(IsLiteral<L::decimal_point> { }, Store { },
+                    &NumberParser::fractionPartStart),
+            std::make_tuple(IsLiteral<L::exponent_upper, L::exponent_lower> { }, 
+                    Store { },&NumberParser::exponentPartStart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& NumberParserT<CharT>::fractionPartStart(
+
+inline ISubParser& NumberParser::fractionPartStart(
         ISubParserState& state, IParser& p)
 {
     return StateTransition(*this, state, p,
             std::make_tuple(IsDigit { }, Store { },
-                    &NumberParserT<CharT>::fractionPart));
+                    &NumberParser::fractionPart));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& NumberParserT<CharT>::fractionPart(
+
+inline ISubParser& NumberParser::fractionPart(
         ISubParserState& state, IParser& p)
 {
-    using L = LiteralsT<CharT>;
+    using L = Literals;
     return StateTransition(*this, state, p,
             std::make_tuple(IsDigit { }, Store { },
-                    &NumberParserT<CharT>::fractionPart),
-            std::make_tuple(IsLiteral<CharT, L::exponent_upper, L::exponent_lower> { }, Store { },
-                    &NumberParserT<CharT>::exponentPartStart),
+                    &NumberParser::fractionPart),
+            std::make_tuple(IsLiteral<L::exponent_upper, L::exponent_lower> { }, Store { },
+                    &NumberParser::exponentPartStart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& NumberParserT<CharT>::exponentPartStart(
+
+inline ISubParser& NumberParser::exponentPartStart(
         ISubParserState& state, IParser& p)
 {
-    using L = LiteralsT<CharT>;
+    using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<CharT, L::minus, L::plus> { }, Store { },
-                    &NumberParserT<CharT>::exponentPartStartSigned),
+            std::make_tuple(IsLiteral<L::minus, L::plus> { }, Store { },
+                    &NumberParser::exponentPartStartSigned),
             std::make_tuple(IsDigit { }, Store { },
-                    &NumberParserT<CharT>::exponentPart));
+                    &NumberParser::exponentPart));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& NumberParserT<CharT>::exponentPartStartSigned(
+
+inline ISubParser& NumberParser::exponentPartStartSigned(
         ISubParserState& state, IParser& p)
 {
     return StateTransition(*this, state, p,
             std::make_tuple(IsDigit { }, Store { },
-                    &NumberParserT<CharT>::exponentPart));
+                    &NumberParser::exponentPart));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& NumberParserT<CharT>::exponentPart(
+
+inline ISubParser& NumberParser::exponentPart(
         ISubParserState& state, IParser& p)
 {
     return StateTransition(*this, state, p,
             std::make_tuple(IsDigit { }, Store { },
-                    &NumberParserT<CharT>::exponentPart),
+                    &NumberParser::exponentPart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
 
-template<typename CharT>
-inline ObjectParserT<CharT>::State::State(IParser& p) :
-        ParserTemplate<ObjectParserT<CharT>, CharT>::State(p), object {
-                JSON::Create<ObjectT<CharT>>() }
+
+inline ObjectParser::State::State(IParser& p) :
+        ParserTemplate<ObjectParser>::State(p), 
+        object (JSON::Create<JSON::Object>())
 {
 }
 
-template<typename CharT>
-inline IObjectPtrT<CharT> ObjectParserT<CharT>::State::getObject()
+
+inline IObjectPtr ObjectParser::State::getObject()
 {
     return std::move(object);
 }
 
-template<typename CharT>
-inline CharT ObjectParserT<CharT>::getFirstSymbolSet()
+
+inline char ObjectParser::getFirstSymbolSet()
 {
-    return LiteralsT<CharT>::begin_object;
+    return Literals::begin_object;
 }
 
-template<typename CharT>
-inline typename ObjectParserT<CharT>::StatePtr ObjectParserT<CharT>::getInitState()
+
+inline ObjectParser::StatePtr ObjectParser::getInitState()
 {
-    return &ObjectParserT<CharT>::start;
+    return &ObjectParser::start;
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& ObjectParserT<CharT>::start(ISubParserState& s,
+
+inline ISubParser& ObjectParser::start(ISubParserState& s,
         IParser& p)
 {
     return StateTransition(*this, s, p,
             std::make_tuple(
-                    IsLiteral<CharT, LiteralsT<CharT>::begin_object> { },
-                    NoOp { }, &ObjectParserT<CharT>::parseKey));
+                    IsLiteral<Literals::begin_object> { },
+                    NoOp { }, &ObjectParser::parseKey));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& ObjectParserT<CharT>::parseKey(ISubParserState& s,
+
+inline ISubParser& ObjectParser::parseKey(ISubParserState& s,
         IParser& p)
 {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsWhitespace<CharT>, NoOp { },
-                    &ObjectParserT<CharT>::parseKey),
-            std::make_tuple(IsLiteral<CharT, LiteralsT<CharT>::end_object> { },
+            std::make_tuple(IsWhitespace, NoOp { },
+                    &ObjectParser::parseKey),
+            std::make_tuple(IsLiteral<Literals::end_object> { },
                     NoOpReturn { }, nullptr),
             std::make_tuple(
-                    IsLiteral<CharT, LiteralsT<CharT>::quotation_mark> { },
-                    Call<StringParserT<CharT>> { },
-                    &ObjectParserT<CharT>::retrieveKey));
+                    IsLiteral<Literals::quotation_mark> { },
+                    Call<StringParser> { },
+                    &ObjectParser::retrieveKey));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& ObjectParserT<CharT>::retrieveKey(ISubParserState& s,
+
+inline ISubParser& ObjectParser::retrieveKey(ISubParserState& s,
         IParser& p)
 {
     auto& state = ISubParserState::Cast(*this, s);
@@ -837,35 +777,35 @@ inline ISubParserT<CharT>& ObjectParserT<CharT>::retrieveKey(ISubParserState& s,
     return parseSeparator(s, p);
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& ObjectParserT<CharT>::parseSeparator(
+
+inline ISubParser& ObjectParser::parseSeparator(
         ISubParserState& s, IParser& p)
 {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsWhitespace<CharT>, NoOp { },
-                    &ObjectParserT<CharT>::parseSeparator),
+            std::make_tuple(IsWhitespace, NoOp { },
+                    &ObjectParser::parseSeparator),
             std::make_tuple(
-                    IsLiteral<CharT, LiteralsT<CharT>::name_separator> { },
-                    NoOp { }, &ObjectParserT<CharT>::parseValue));
+                    IsLiteral<Literals::name_separator> { },
+                    NoOp { }, &ObjectParser::parseValue));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& ObjectParserT<CharT>::parseValue(ISubParserState& s,
+
+inline ISubParser& ObjectParser::parseValue(ISubParserState& s,
         IParser& p)
 {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsWhitespace<CharT>, NoOp { },
-                    &ObjectParserT<CharT>::parseValue),
+            std::make_tuple(IsWhitespace, NoOp { },
+                    &ObjectParser::parseValue),
             std::make_tuple(Others { }, Dispatch { },
-                    &ObjectParserT<CharT>::retrieveValue));
+                    &ObjectParser::retrieveValue));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& ObjectParserT<CharT>::retrieveValue(
+
+inline ISubParser& ObjectParser::retrieveValue(
         ISubParserState& s, IParser& p)
 {
     auto& state = ISubParserState::Cast(*this, s);
-    auto& currentObject = static_cast<ObjectT<CharT>&>(*state.object);
+    auto& currentObject = static_cast<Object&>(*state.object);
 
     currentObject.emplace(std::move(state.currentKey),
             std::move(p.getLastState()->getObject()));
@@ -873,174 +813,173 @@ inline ISubParserT<CharT>& ObjectParserT<CharT>::retrieveValue(
     return nextMember(s, p);
 }
 
-template<typename CharT>
-ISubParserT<CharT>& ObjectParserT<CharT>::nextMember(ISubParserState& s,
+
+ISubParser& ObjectParser::nextMember(ISubParserState& s,
         IParser& p)
 {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsWhitespace<CharT>, NoOp { },
-                    &ObjectParserT<CharT>::nextMember),
-            std::make_tuple(IsLiteral<CharT, LiteralsT<CharT>::end_object> { },
+            std::make_tuple(IsWhitespace, NoOp { },
+                    &ObjectParser::nextMember),
+            std::make_tuple(IsLiteral<Literals::end_object> { },
                     NoOpReturn { }, nullptr),
             std::make_tuple(
-                    IsLiteral<CharT, LiteralsT<CharT>::value_separator> { },
-                    NoOp { }, &ObjectParserT<CharT>::parseKey));
+                    IsLiteral<Literals::value_separator> { },
+                    NoOp { }, &ObjectParser::parseKey));
 }
 
-template<typename CharT>
-inline ArrayParserT<CharT>::State::State(IParser& p) :
-        ParserTemplate<ArrayParserT<CharT>, CharT>::State(p), object {
-                JSON::Create<ArrayT<CharT>>() }
+
+inline ArrayParser::State::State(IParser& p) :
+        ParserTemplate<ArrayParser>::State(p), object {
+                JSON::Create<JSON::Array>() }
 {
 }
 
-template<typename CharT>
-inline IObjectPtrT<CharT> ArrayParserT<CharT>::State::getObject()
+
+inline IObjectPtr ArrayParser::State::getObject()
 {
     return std::move(object);
 }
 
-template<typename CharT>
-inline CharT ArrayParserT<CharT>::getFirstSymbolSet()
+
+inline char ArrayParser::getFirstSymbolSet()
 {
-    return LiteralsT<CharT>::begin_array;
+    return Literals::begin_array;
 }
 
-template<typename CharT>
-inline typename ArrayParserT<CharT>::StatePtr ArrayParserT<CharT>::getInitState()
+
+inline ArrayParser::StatePtr ArrayParser::getInitState()
 {
-    return &ArrayParserT<CharT>::start;
+    return &ArrayParser::start;
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& ArrayParserT<CharT>::start(ISubParserState& s,
+
+inline ISubParser& ArrayParser::start(ISubParserState& s,
         IParser& p)
 {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsLiteral<CharT, LiteralsT<CharT>::begin_array> { },
-                    NoOp { }, &ArrayParserT<CharT>::parseValue));
+            std::make_tuple(IsLiteral<Literals::begin_array> { },
+                    NoOp { }, &ArrayParser::parseValue));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& ArrayParserT<CharT>::parseValue(ISubParserState& s,
+
+inline ISubParser& ArrayParser::parseValue(ISubParserState& s,
         IParser& p)
 {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsWhitespace<CharT>, NoOp { },
-                    &ArrayParserT<CharT>::parseValue),
+            std::make_tuple(IsWhitespace, NoOp { },
+                    &ArrayParser::parseValue),
             std::make_tuple(Others { }, Dispatch { },
-                    &ArrayParserT<CharT>::retrieveValue));
+                    &ArrayParser::retrieveValue));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& ArrayParserT<CharT>::retrieveValue(
+
+inline ISubParser& ArrayParser::retrieveValue(
         ISubParserState& s, IParser& p)
 {
     auto& state = ISubParserState::Cast(*this, s);
-    auto& currentObject = static_cast<ArrayT<CharT>&>(*state.object);
+    auto& currentObject = static_cast<Array&>(*state.object);
 
     currentObject.emplace(std::move(p.getLastState()->getObject()));
 
     return nextMember(s, p);
 }
 
-template<typename CharT>
-ISubParserT<CharT>& ArrayParserT<CharT>::nextMember(ISubParserState& s,
+
+ISubParser& ArrayParser::nextMember(ISubParserState& s,
         IParser& p)
 {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsWhitespace<CharT>, NoOp { },
-                    &ArrayParserT<CharT>::nextMember),
-            std::make_tuple(IsLiteral<CharT, LiteralsT<CharT>::end_array> { },
+            std::make_tuple(IsWhitespace, NoOp { },
+                    &ArrayParser::nextMember),
+            std::make_tuple(IsLiteral<Literals::end_array> { },
                     NoOpReturn { }, nullptr),
             std::make_tuple(
-                    IsLiteral<CharT, LiteralsT<CharT>::value_separator> { },
-                    NoOp { }, &ArrayParserT<CharT>::parseValue));
+                    IsLiteral<Literals::value_separator> { },
+                    NoOp { }, &ArrayParser::parseValue));
 }
 
-template<typename CharT>
-inline const CharT* WSParserT<CharT>::getFirstSymbolSet()
+
+inline const char* WSParser::getFirstSymbolSet()
 {
-    return LiteralsT<CharT>::whitespace_string();
+    return Literals::whitespace_string();
 }
 
-template<typename CharT>
-inline typename WSParserT<CharT>::StatePtr WSParserT<CharT>::getInitState()
+
+inline WSParser::StatePtr WSParser::getInitState()
 {
-    return &WSParserT<CharT>::dispatch;
+    return &WSParser::dispatch;
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& WSParserT<CharT>::dispatch(
+
+inline ISubParser& WSParser::dispatch(
         ISubParserState& state, IParser& p)
 {
-    if (IsWhitespace<CharT>(p.getCurrentChar()))
+    if (IsWhitespace(p.getCurrentChar()))
         return *this;
     else {
         return DispatchFirstSymbol(p, p.getParsers());
     }
 }
 
-template<typename CharT>
-inline IObjectPtrT<CharT> StringParserT<CharT>::State::getObject()
+
+inline IObjectPtr StringParser::State::getObject()
 {
     return std::move(object);
 }
 
-template<typename CharT>
-inline CharT StringParserT<CharT>::getFirstSymbolSet()
+
+inline char StringParser::getFirstSymbolSet()
 {
-    return LiteralsT<CharT>::quotation_mark;
+    return Literals::quotation_mark;
 }
 
-template<typename CharT>
-inline typename StringParserT<CharT>::StatePtr StringParserT<CharT>::getInitState()
+
+inline StringParser::StatePtr StringParser::getInitState()
 {
-    return &StringParserT<CharT>::start;
+    return &StringParser::start;
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& StringParserT<CharT>::start(ISubParserState& s,
+
+inline ISubParser& StringParser::start(ISubParserState& s,
         IParser& p)
 {
     return StateTransition(*this, s, p,
             std::make_tuple(
-                    IsLiteral<CharT, LiteralsT<CharT>::quotation_mark> { },
-                    NoOp { }, &StringParserT<CharT>::parseChar));
+                    IsLiteral<Literals::quotation_mark> { },
+                    NoOp { }, &StringParser::parseChar));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& StringParserT<CharT>::parseChar(ISubParserState& s,
+
+inline ISubParser& StringParser::parseChar(ISubParserState& s,
         IParser& p)
 {
     return StateTransition(*this, s, p,
             std::make_tuple(
-                    IsLiteral<CharT, LiteralsT<CharT>::quotation_mark> { },
+                    IsLiteral<Literals::quotation_mark> { },
                     Return<MyJSONType> { }, nullptr),
             std::make_tuple(
-                    IsLiteral<CharT, LiteralsT<CharT>::string_escape> { },
-                    NoOp { }, &StringParserT<CharT>::parseEscapeChar),
-            std::make_tuple(IsStringChar{}, Store{}, &StringParserT<CharT>::parseChar));
+                    IsLiteral<Literals::string_escape> { },
+                    NoOp { }, &StringParser::parseEscapeChar),
+            std::make_tuple(IsStringChar{}, Store{}, &StringParser::parseChar));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& StringParserT<CharT>::parseEscapeChar(
+
+inline ISubParser& StringParser::parseEscapeChar(
         ISubParserState& s, IParser& p)
 {
     return StateTransition(*this, s, p,
             std::make_tuple(
-                    IsLiteral<CharT,
-                            JSON::LiteralsT<CharT>::string_unicode_escape> { },
-                    NoOp { }, &StringParserT<CharT>::parseUnicodeEscapeChar),
-            std::make_tuple([](CharT c) -> bool {
-                for(auto e : JSON::LiteralsT<CharT>::string_escapes())
-                    if(std::char_traits<CharT>::eq(e,c))return true;
+                    IsLiteral<JSON::Literals::string_unicode_escape> { },
+                    NoOp { }, &StringParser::parseUnicodeEscapeChar),
+            std::make_tuple([](char c) -> bool {
+                for(auto e : JSON::Literals::string_escapes())
+                    if(std::char_traits<char>::eq(e,c))return true;
                 return false;
-            }, Store { }, &StringParserT<CharT>::parseChar));
+            }, Store { }, &StringParser::parseChar));
 }
 
-template<typename CharT>
-inline ISubParserT<CharT>& StringParserT<CharT>::parseUnicodeEscapeChar(
+
+inline ISubParser& StringParser::parseUnicodeEscapeChar(
         ISubParserState& s, IParser& p)
 {
     // throws exception!
@@ -1050,18 +989,15 @@ inline ISubParserT<CharT>& StringParserT<CharT>::parseUnicodeEscapeChar(
 
 } // namespace JSON::impl
 
-template<typename CharT>
-class Parser: public impl::IParserT<CharT> {
+
+class Parser: public impl::IParser {
 public:
-    using ObjContainer = ObjContainerT<CharT>;
 
     Parser() :
             current_char { }
     {
-        using ISubParserState = impl::ISubParserStateT<CharT>;
         stateStack.push(
-                ISubParserState::template Create<impl::WSParserT<CharT>>(
-                        *this));
+                impl::ISubParserState::Create<impl::WSParser>(*this));
     }
 
     ObjContainer retrieveObjects()
@@ -1081,7 +1017,7 @@ public:
         return isRetrievable();
     }
 
-    void operator()(CharT c)
+    void operator()(char c)
     {
         current_char = c;
         stateStack.top()->getParser(*this)(*this);
@@ -1093,11 +1029,11 @@ public:
     Parser& operator=(Parser&&) = delete;
 
 private:
-    using ParserTuple = impl::ParserTupleT<CharT>;
-    using ParserStateStack = impl::ParserStateStackT<CharT>;
-    using ISubParserStatePtr = impl::ISubParserStatePtrT<CharT>;
+    using ParserTuple = impl::ParserTuple;
+    using ParserStateStack = impl::ParserStateStack;
+    using ISubParserStatePtr = impl::ISubParserStatePtr;
 
-    CharT getCurrentChar() const noexcept override
+    char getCurrentChar() const noexcept override
     {
         return current_char;
     }
@@ -1122,7 +1058,7 @@ private:
         return lastState;
     }
 
-    CharT current_char;
+    char current_char;
     ObjContainer objects;
     ParserTuple parsers;
     ParserStateStack stateStack;
@@ -1131,11 +1067,16 @@ private:
 };
 
 template<typename ForwardIterator>
-ObjContainerT<std::decay_t<decltype(*(std::declval<ForwardIterator>()))>> parse(
+ObjContainer parse(
         ForwardIterator start, ForwardIterator end)
 {
-
-    Parser<std::decay_t<decltype(*(std::declval<ForwardIterator>()))>> p;
+    static_assert(
+        std::is_same<
+        char,
+        std::decay_t<decltype(*(std::declval<ForwardIterator>()))>
+        >::value,
+        "ForwardIterator does not dereference to char");
+    Parser p;
 
     for (; start != end; ++start) {
         p(*start);

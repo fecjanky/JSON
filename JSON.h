@@ -24,29 +24,19 @@ struct OutOfRange: public JSON::Exception {
 struct AttributeNotUnique: public JSON::Exception {
 };
 
-template<typename CharT>
-struct IObjectT;
-template<typename CharT>
-struct IAggregateObjectT;
+struct IObject;
+using IObjectPtr = std::unique_ptr<IObject>;
 
-template<typename CharT>
-using IObjectPtrT = std::unique_ptr<IObjectT<CharT>>;
+struct IObject {
+    using IObjectPtr = JSON::IObjectPtr;
+    using StringType = std::string;
+    using OstreamT = std::ostream;
 
-template<typename CharT>
-using IAggregateObjectPtrT = std::unique_ptr<IAggregateObjectT<CharT>>;
+    virtual IObject& operator[](const StringType& key) = 0;
+    virtual const IObject& operator[](const StringType& key) const = 0;
 
-template<typename CharT_>
-struct IObjectT {
-    using CharT = CharT_;
-    using IObjectPtrT = JSON::IObjectPtrT<CharT>;
-    using StringType = std::basic_string<CharT>;
-    using OstreamT = std::basic_ostream<CharT>;
-
-    virtual IObjectT& operator[](const StringType& key) = 0;
-    virtual const IObjectT& operator[](const StringType& key) const = 0;
-
-    virtual IObjectT& operator[](size_t index) = 0;
-    virtual const IObjectT& operator[](size_t index) const = 0;
+    virtual IObject& operator[](size_t index) = 0;
+    virtual const IObject& operator[](size_t index) const = 0;
 
     virtual const StringType& getValue() const = 0;
 
@@ -60,27 +50,26 @@ struct IObjectT {
     // Minimal whitespace (transmission syntax)
     virtual void serialize(OstreamT&) const = 0;
 
-    virtual ~IObjectT() = default;
+    virtual ~IObject() = default;
 };
 
-template<typename CharT>
-inline std::basic_ostream<CharT>& operator <<(std::basic_ostream<CharT>& os,
-        const IObjectT<CharT>& obj)
+
+inline std::ostream& operator <<(std::ostream& os,const IObject& obj)
 {
-    obj.serialize(std::basic_string<CharT> { }, os);
+    obj.serialize(std::string { }, os);
     return os;
 }
 
-template<typename CharT>
-struct IAggregateObjectT: public IObjectT<CharT> {
-    using StringType = std::basic_string<CharT>;
-    using IObjectPtr = JSON::IObjectPtrT<CharT>;
+
+struct IAggregateObject: public IObject {
+    using StringType = IObject::StringType;
+    using IObjectPtr = IObject::IObjectPtr;
     // for arrays
     virtual void emplace(IObjectPtr && obj) = 0;
     // for objects
     virtual void emplace(StringType&& name, IObjectPtr && obj) = 0;
 
-    virtual ~IAggregateObjectT() = default;
+    virtual ~IAggregateObject() = default;
 };
 
 }
