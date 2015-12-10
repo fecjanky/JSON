@@ -16,13 +16,13 @@ namespace JSON {
 namespace impl {
         
 template<typename IF>
-Iterator IteratorIFImpl<IF>::begin() {
+Iterator IteratorIFImpl<IF>::begin() const {
     return Iterator(*this);
 }
 
 template<typename IF>
-Iterator IteratorIFImpl<IF>::end() {
-    return Iterator{};
+Iterator IteratorIFImpl<IF>::end() const {
+    return Iterator{*this,Iterator::end};
 }
 
 template<typename T>
@@ -222,7 +222,16 @@ inline void Object::accept(IVisitor& v)const
 {
     v.visit(*this);
 }
-        
+
+inline bool Object::operator==(const IObject& rhs) const 
+{
+    return rhs.compare(*this);
+}
+
+inline bool Object::compare(const Object& o)  const 
+{
+    return o.values == values;
+}
 
 
 inline Array::Array()
@@ -312,6 +321,16 @@ inline void Array::accept(IVisitor& v)const
     v.visit(*this);
 }
 
+inline bool Array::operator==(const IObject& o) const
+{
+    return o.compare(*this);
+}
+
+inline bool Array::compare(const Array& a)  const
+{
+    return a.values == values;
+}
+
 inline IObject& BuiltIn::operator[](const StringType& key)
 {
     throw TypeError();
@@ -373,6 +392,17 @@ inline Bool::Bool(StringType&& s) : BuiltIn(impl::Validator<bool> { }(std::move(
 inline Bool::Bool(const char * s) : Bool(StringType(s))
 {
 }
+
+inline bool Bool::operator==(const IObject& o) const
+{
+    return o.compare(*this);
+}
+
+inline bool Bool::compare(const Bool& b)  const
+{
+    return b.nativeValue == nativeValue;
+}
+
 
 inline True::True() : Bool(Literals::value_true())
 {
@@ -459,6 +489,16 @@ inline void String::accept(IVisitor& v)const
     v.visit(*this);
 }
 
+inline bool String::operator==(const IObject& o) const
+{
+    return o.compare(*this);
+}
+
+inline bool String::compare(const String& s)  const
+{
+    return s.getValue() == getValue();
+}
+
 
 inline Number::Number(double d) : nativeValue{ d }
 {
@@ -489,6 +529,16 @@ inline void Number::accept(IVisitor& v)const
     v.visit(*this);
 }
 
+inline bool Number::operator==(const IObject& o) const
+{
+    return o.compare(*this);
+}
+
+inline bool Number::compare(const Number& n)  const
+{
+    return n.nativeValue == nativeValue;
+}
+
 
 inline Null::Null() : BuiltIn(StringType(Literals::value_null()))
 {
@@ -517,6 +567,17 @@ inline void Null::accept(IVisitor& v)const
 {
     v.visit(*this);
 }
+
+inline bool Null::operator==(const IObject& o) const
+{
+    return o.compare(*this);
+}
+
+inline bool Null::compare(const Null&)  const
+{
+    return true;
+}
+
 
 } //namespace JSON
 

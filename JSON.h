@@ -53,6 +53,17 @@ struct IObject {
     // no whitespace (compact,transmission syntax)
     virtual void serialize(OstreamT&) const = 0;
     
+    virtual bool compare(const Object&)  const {return false;}
+    virtual bool compare(const Array&)  const {return false;}
+    virtual bool compare(const Bool&)  const {return false;}
+    virtual bool compare(const Null&) const {return false;}
+    virtual bool compare(const Number&) const {return false;}
+    virtual bool compare(const String&) const {return false;}
+    virtual bool operator==(const IObject&) const = 0;
+    bool operator!=(const IObject& o) const {
+        return !(this->operator==(o));
+    }
+
     struct IVisitor {
         virtual void visit(const Object&) = 0;
         virtual void visit(const Array&) = 0;
@@ -68,19 +79,11 @@ struct IObject {
     virtual void accept(IVisitor&) = 0;
     virtual void accept(IVisitor&)const = 0;
     using iterator = Iterator;
-    virtual iterator begin() = 0;
-    virtual iterator end() = 0;
+    virtual iterator begin() const = 0;
+    virtual iterator end() const = 0;
 
     virtual ~IObject() = default;
 };
-
-
-inline std::ostream& operator <<(std::ostream& os,const IObject& obj)
-{
-    obj.serialize(std::string { }, os);
-    return os;
-}
-
 
 struct IAggregateObject: public IObject {
     using StringType = IObject::StringType;
@@ -92,6 +95,12 @@ struct IAggregateObject: public IObject {
 
     virtual ~IAggregateObject() = default;
 };
+
+inline std::ostream& operator <<(std::ostream& os, const IObject& obj)
+{
+    obj.serialize(std::string{}, os);
+    return os;
+}
 
 } //namespace JSON
 

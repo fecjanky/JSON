@@ -69,8 +69,13 @@ struct IteratorState {
 
 class Iterator : public IObject::IVisitor {
 public:
+    enum end_t{
+        end
+    };
+
+    Iterator(const IObject& o,end_t);
     explicit Iterator(const IObject& o);
-    Iterator() = default;
+    Iterator();
     Iterator(const Iterator&) = default;
     Iterator(Iterator&&) = default;
     Iterator& operator=(const Iterator&) = default;
@@ -89,8 +94,8 @@ private:
     using StatePtr = impl::CloneableUniquePtr<impl::IteratorState>;
     using State = std::pair<const IObject*, StatePtr>;
 
-    void visit(const Object& o) override;
-    void visit(const Array& a) override;
+    void visit(const Object&) override;
+    void visit(const Array&) override;
     void visit(const True&) override;
     void visit(const False&) override;
     void visit(const Null&) override;
@@ -99,8 +104,9 @@ private:
         
     void next_elem();
     template<typename State, typename Obj>
-    void stateful_visit(const Obj& o);
-        
+    void stateful_visit(const Obj&);
+    
+    const IObject* root;
     std::stack<State> objStack;
 };
 

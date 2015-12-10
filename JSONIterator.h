@@ -40,8 +40,14 @@ struct ArrayIteratorState : public impl::IteratorState {
 
 } // namespace impl
 
+inline Iterator::Iterator() : root{} 
+{
+}
 
-inline Iterator::Iterator(const IObject& o) 
+inline Iterator::Iterator(const IObject& o, end_t) : root{&o} {
+}
+
+inline Iterator::Iterator(const IObject& o) : root{&o}
 {
     objStack.emplace(&o, nullptr);
 }
@@ -70,7 +76,7 @@ inline const IObject* Iterator::operator->()
     
 inline bool Iterator::operator==(const Iterator& rhs)const
 {
-    return objStack == rhs.objStack;
+    return  root == rhs.root && objStack == rhs.objStack;
 }
     
 inline bool Iterator::operator!=(const Iterator& rhs)const

@@ -13,8 +13,8 @@ namespace impl {
 template<class IF>
 class IteratorIFImpl : public IF {
 public:
-    Iterator begin() override;
-    Iterator end() override;
+    Iterator begin() const override;
+    Iterator end() const override;
 };
 
 } //namespace impl
@@ -44,6 +44,8 @@ public:
     void serialize(OstreamT& os) const override;
     void accept(IVisitor& v) override;
     void accept(IVisitor& v)const override;
+    bool operator==(const IObject&) const override;
+    bool compare(const Object&)  const override;
 
 private:
     Container values;
@@ -73,6 +75,8 @@ public:
     void serialize(OstreamT& os) const override;
     void accept(IVisitor& v) override;
     void accept(IVisitor& v)const override;
+    bool operator==(const IObject&) const override;
+    bool compare(const Array&)  const override;
 
 private:
     Container values;
@@ -107,6 +111,10 @@ public:
     using Literals = JSON::Literals;
 
     bool getNativeValue() const noexcept;
+
+    bool operator==(const IObject&) const override;
+    bool compare(const Bool&)  const override;
+
 protected:
     explicit Bool(bool b = false);
     explicit Bool(const StringType& s);
@@ -155,6 +163,9 @@ public:
     void accept(IVisitor& v) override;
     void accept(IVisitor& v)const override;
 
+    bool operator==(const IObject&) const override;
+    bool compare(const String&)  const override;
+
 };
 
 class Number : public BuiltIn {
@@ -167,6 +178,9 @@ public:
     double getNativeValue() const noexcept;
     void accept(IVisitor& v) override;
     void accept(IVisitor& v)const override;
+    bool operator==(const IObject&) const override;
+    bool compare(const Number&)  const override;
+
 private:
     double nativeValue;
 };
@@ -182,6 +196,8 @@ public:
     static const char* Literal();
     void accept(IVisitor& v) override;
     void accept(IVisitor& v)const override;
+    bool operator==(const IObject&) const override;
+    bool compare(const Null&)  const override;
 };
 
 template<typename T, typename B = void> struct IsJSONType : public std::false_type {

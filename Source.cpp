@@ -2,7 +2,6 @@
 #include <sstream>
 
 #include "JSON.h"
-#include "JSONObjects.h"
 #include "JSONParser.h"
 #include "JSONIterator.h"
 
@@ -36,15 +35,17 @@ int main(int, char**) try{
 )--" };
 */
     {
-        //auto objs = ::JSON::parse(json_text3.begin(), json_text3.end());
+        auto objs = ::JSON::parse(json_text3.begin(), json_text3.end());
+        auto objs2 = ::JSON::parse(json_text3.begin(), json_text3.end());
         
-        JSON::IObject* p = nullptr;
-        JSON::IObject& rp = *p;
-        auto& v = rp["name"];
-        auto it = rp.begin();
+        bool eq = (*objs[0] == *objs2[0]);
         //std::string s = obj["menu"]["popup"]["name"];
         int i = 0;
         //JSON::IObject::iterator tit{};
+        auto& obj = *objs[0];
+        for (auto& x : obj) {
+            std::cout << x << std::endl;
+        }
 
         std::stringstream ss;
 
