@@ -122,8 +122,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="JSON.h" />
+    <ClInclude Include="JSONFwd.h" />
+    <ClInclude Include="JSONIterator.h" />
+    <ClInclude Include="JSONIteratorFwd.h" />
     <ClInclude Include="JSONLiterals.h" />
     <ClInclude Include="JSONObjects.h" />
+    <ClInclude Include="JSONObjectsFwd.h" />
     <ClInclude Include="JSONParser.h" />
     <ClInclude Include="JSONSchema.h" />
   </ItemGroup>

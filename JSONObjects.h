@@ -7,532 +7,517 @@
 #include <utility>
 #include <sstream>
 
-#include "JSON.h"
 #include "JSONLiterals.h"
+#include "JSONObjectsFwd.h"
+#include "JSONIteratorFwd.h"
 
 namespace JSON {
     
-    namespace impl {
-        template<typename T>
-        struct Validator;
+namespace impl {
+        
+template<typename IF>
+Iterator IteratorIFImpl<IF>::begin() {
+    return Iterator(*this);
+}
 
-        template<>
-        struct Validator<double> {
-            const std::string& operator()(
-                const std::string& rep) const
-            {
-                return validate(rep);
-            }
+template<typename IF>
+Iterator IteratorIFImpl<IF>::end() {
+    return Iterator{};
+}
 
-            
-            std::string&& operator()(std::string&& rep) const
-            {
-                return validate(std::move(rep));
-            }
-        private:
-            template<typename StringType>
-            StringType&& validate(StringType&& str) const
-            {
-                double temp{};
-                std::stringstream ss(str);
-                ss << std::scientific;
-                ss >> temp;
-                if (ss.bad() || ss.fail()
-                    || ss.peek() != std::char_traits<char>::eof())
-                    throw ValueError();
-                return std::forward<StringType>(str);
-            }
-        };
+template<typename T>
+struct Validator;
 
-        template<>
-        struct Validator<nullptr_t> {
-            
-            const std::string& operator()(
-                const std::string& rep) const
-            {
-                return validate(rep);
-            }
-
-            
-            std::string&& operator()(std::string&& rep) const
-            {
-                return validate(std::move(rep));
-            }
-        private:
-            template<typename StringType>
-            StringType&& validate(StringType&& str) const
-            {
-                if (str
-                    != std::remove_reference_t<StringType>(
-                        Literals::value_null()))
-                    throw ValueError();
-                return std::forward<StringType>(str);
-            }
-        };
-
-        template<>
-        struct Validator<bool> {
-            
-            const std::string& operator()(
-                const std::string& rep) const
-            {
-                return validate(rep);
-            }
-
-            
-            std::string&& operator()(std::string&& rep) const
-            {
-                return validate(std::move(rep));
-            }
-        private:
-            template<typename StringType>
-            StringType&& validate(StringType&& str) const
-            {
-                if (str
-                    != std::basic_string < char
-                    >(Literals::value_false()) && str
-                    != std::string(Literals::value_true()))
-                    throw ValueError();
-                return std::forward<StringType>(str);
-            }
-        };
-
-        std::string to_string(bool b)
-        {
-            if (b)
-                return std::string(Literals::value_true());
-            else
-                return std::string(Literals::value_false());
-        }
+template<>
+struct Validator<double> {
+    const std::string& operator()(
+        const std::string& rep) const
+    {
+        return validate(rep);
     }
 
-    
-    class Object : public IAggregateObject {
-    public:
-        using StringType = IAggregateObject::StringType;
-        using OstreamT = IAggregateObject::OstreamT;
-        using IObjectPtr = IAggregateObject::IObjectPtr;
-        using IObject = IAggregateObject::IObject;
-        using Key = StringType;
-        using Value = IObjectPtr;
-        using Entry = std::pair<const Key, Value>;
-        using Container = std::unordered_map<Key, Value>;
-        using Literals = JSON::Literals;
+            
+    std::string&& operator()(std::string&& rep) const
+    {
+        return validate(std::move(rep));
+    }
+private:
+    template<typename StringType>
+    StringType&& validate(StringType&& str) const
+    {
+        double temp{};
+        std::stringstream ss(str);
+        ss << std::scientific;
+        ss >> temp;
+        if (ss.bad() || ss.fail()
+            || ss.peek() != std::char_traits<char>::eof())
+            throw ValueError();
+        return std::forward<StringType>(str);
+    }
+};
+
+template<>
+struct Validator<nullptr_t> {
+            
+    const std::string& operator()(
+        const std::string& rep) const
+    {
+        return validate(rep);
+    }
+
+            
+    std::string&& operator()(std::string&& rep) const
+    {
+        return validate(std::move(rep));
+    }
+private:
+    template<typename StringType>
+    StringType&& validate(StringType&& str) const
+    {
+        if (str
+            != std::remove_reference_t<StringType>(
+                Literals::value_null()))
+            throw ValueError();
+        return std::forward<StringType>(str);
+    }
+};
+
+template<>
+struct Validator<bool> {
+            
+    const std::string& operator()(
+        const std::string& rep) const
+    {
+        return validate(rep);
+    }
+
+            
+    std::string&& operator()(std::string&& rep) const
+    {
+        return validate(std::move(rep));
+    }
+private:
+    template<typename StringType>
+    StringType&& validate(StringType&& str) const
+    {
+        if (str
+            != std::basic_string < char
+            >(Literals::value_false()) && str
+            != std::string(Literals::value_true()))
+            throw ValueError();
+        return std::forward<StringType>(str);
+    }
+};
+
+std::string to_string(bool b)
+{
+    if (b)
+        return std::string(Literals::value_true());
+    else
+        return std::string(Literals::value_false());
+}
+
+} //namespace impl
+        
+       
+
+inline Object::Object()
+{
+}
+
+inline IObject& Object::operator[](const StringType& key)
+{
+    auto obj = values.find(key);
+    if (obj == values.end())
+        throw AttributeMissing();
+    return *obj->second;
+}
+
+inline const IObject& Object::operator[](const StringType& key) const
+{
+    auto obj = values.find(key);
+    if (obj == values.end())
+        throw AttributeMissing();
+    return *obj->second;
+}
+
+inline IObject& Object::operator[](size_t index)
+{
+    throw TypeError();
+}
+
+inline const IObject& Object::operator[](size_t index) const
+{
+    throw TypeError();
+}
+
+inline  const Object::StringType& Object::getValue() const 
+{
+    throw TypeError();
+}
+
+inline const Object::Container& Object::getValues() const
+{
+    return values;
+}
+
+
+inline void Object::emplace(IObjectPtr && obj)
+{
+    throw AggregateTypeError();
+}
+
+inline void Object::emplace(StringType&& name, IObjectPtr && obj)
+{
+    if (values.find(name) != values.end())
+        throw AttributeNotUnique();
+    values.emplace(std::move(name), std::move(obj));
+}
+
+inline void Object::serialize(StringType&& indentation, OstreamT& os) const
+{
+    os << Literals::newline << indentation << Literals::begin_object
+        << Literals::newline;
+    indentation.push_back(Literals::space);
+    indentation.push_back(Literals::space);
+    for (auto i = values.begin(); i != values.end();) {
+        os << indentation << Literals::quotation_mark << i->first
+            << Literals::quotation_mark << Literals::space
+            << Literals::name_separator << Literals::space;
+
+        i->second->serialize(std::move(indentation), os);
+        ++i;
+        if (i != values.end())
+            os << Literals::space << Literals::value_separator
+            << Literals::newline;
+        else
+            os << Literals::newline;
+
+    }
+    indentation.pop_back();
+    indentation.pop_back();
+    os << indentation << Literals::end_object;
+}
+
+inline void Object::serialize(OstreamT& os) const 
+{
+    os << Literals::begin_object;
+    for (auto i = values.begin(); i != values.end();) {
+        os << Literals::quotation_mark << i->first
+            << Literals::quotation_mark << Literals::name_separator;
+        i->second->serialize(os);
+        ++i;
+        if (i != values.end())
+            os << Literals::value_separator;
+    }
+    os << Literals::end_object;
+}
+
+inline void Object::accept(IVisitor& v)
+{
+    v.visit(*this);
+}
+
+inline void Object::accept(IVisitor& v)const
+{
+    v.visit(*this);
+}
         
 
-        Object()
-        {
-        }
 
-        IObject& operator[](const StringType& key) override
-        {
-            auto obj = values.find(key);
-            if (obj == values.end())
-                throw AttributeMissing();
-            return *obj->second;
-        }
-
-        const IObject& operator[](const StringType& key) const override
-        {
-            auto obj = values.find(key);
-            if (obj == values.end())
-                throw AttributeMissing();
-            return *obj->second;
-        }
-
-        IObject& operator[](size_t index) override
-        {
-            throw TypeError();
-        }
-
-        const IObject& operator[](size_t index) const override
-        {
-            throw TypeError();
-        }
-
-        virtual const StringType& getValue() const override
-        {
-            throw TypeError();
-        }
-
-        const Container& getValues() const
-        {
-            return values;
-        }
-
-
-        void emplace(IObjectPtr && obj) override
-        {
-            throw AggregateTypeError();
-        }
-
-        void emplace(StringType&& name, IObjectPtr && obj) override
-        {
-            if (values.find(name) != values.end())
-                throw AttributeNotUnique();
-            values.emplace(std::move(name), std::move(obj));
-        }
-
-        void serialize(StringType&& indentation, OstreamT& os) const override
-        {
-            os << Literals::newline << indentation << Literals::begin_object
-                << Literals::newline;
-            indentation.push_back(Literals::space);
-            indentation.push_back(Literals::space);
-            for (auto i = values.begin(); i != values.end();) {
-                os << indentation << Literals::quotation_mark << i->first
-                    << Literals::quotation_mark << Literals::space
-                    << Literals::name_separator << Literals::space;
-
-                i->second->serialize(std::move(indentation), os);
-                ++i;
-                if (i != values.end())
-                    os << Literals::space << Literals::value_separator
-                    << Literals::newline;
-                else
-                    os << Literals::newline;
-
-            }
-            indentation.pop_back();
-            indentation.pop_back();
-            os << indentation << Literals::end_object;
-        }
-
-        void serialize(OstreamT& os) const override {
-            os << Literals::begin_object;
-            for (auto i = values.begin(); i != values.end();) {
-                os << Literals::quotation_mark << i->first
-                    << Literals::quotation_mark << Literals::name_separator;
-                i->second->serialize(os);
-                ++i;
-                if (i != values.end())
-                    os << Literals::value_separator;
-            }
-            os << Literals::end_object;
-        }
-
-    private:
-        Container values;
-    };
-
-    
-    class Array : public IAggregateObject {
-    public:
-        using StringType = IAggregateObject::StringType;
-        using OstreamT = IAggregateObject::OstreamT;
-        using IObjectPtr = IAggregateObject::IObjectPtr;
-        using IObject = IAggregateObject::IObject;
-        using Value = IObjectPtr;
-        using Container = std::vector<Value>;
-        using Literals = JSON::Literals;
-
-        Array()
-        {
-        }
-
-        IObject& operator[](const StringType& key) override {
-            throw TypeError();
-        }
-
-        const IObject& operator[](const StringType& key) const override {
-            throw TypeError();
-        }
-
-        IObject& operator[](size_t index) override {
-            if (index >= values.size())
-                throw OutOfRange();
-            return *values[index];
-        }
-
-        const IObject& operator[](size_t index) const override {
-            if (index >= values.size())
-                throw OutOfRange();
-            return *values[index];
-        }
-
-        virtual const StringType& getValue() const override {
-            throw TypeError();
-        }
-
-        Container& getValues() {
-            return values;
-        }
-
-        const Container& getValues() const {
-            return values;
-        }
-
-        void emplace(IObjectPtr&& obj) override {
-            values.emplace_back(std::move(obj));
-        }
-
-        void emplace(StringType&& name, IObjectPtr&& obj) override {
-            throw AggregateTypeError();
-        }
-
-        void serialize(StringType&& indentation, OstreamT& os) const override {
-            os << Literals::begin_array << Literals::space;
-            for (auto i = values.begin(); i != values.end();) {
-                (*i)->serialize(std::move(indentation), os);
-                ++i;
-                if (i != values.end())
-                    os << Literals::space <<
-                    Literals::value_separator << Literals::space;
-            }
-            os << Literals::space << Literals::end_array;
-        }
-
-        void serialize(OstreamT& os) const override {
-            os << Literals::begin_array;
-            for (auto i = values.begin(); i != values.end();) {
-                (*i)->serialize(os);
-                ++i;
-                if (i != values.end()) os << Literals::value_separator;
-            }
-            os << Literals::end_array;
-        }
-
-    private:
-        Container values;
-    };
-
-    class BuiltIn : public IObject {
-    public:
-
-        using StringType = IObject::StringType;
-        using OstreamT = IObject::OstreamT;
-        using IObjectPtr = IObject::IObjectPtr;
-        using Literals = JSON::Literals;
-
-        IObject& operator[](const StringType& key) override
-        {
-            throw TypeError();
-        }
-
-        const IObject& operator[](const StringType& key) const override
-        {
-            throw TypeError();
-        }
-
-        IObject& operator[](size_t index) override
-        {
-            throw TypeError();
-        }
-
-        const IObject& operator[](size_t index) const override
-        {
-            throw TypeError();
-        }
-
-        virtual const StringType& getValue() const override
-        {
-            return value;
-        }
-
-        void serialize(StringType&&, OstreamT& os) const override
-        {
-            os << value;
-        }
-        void serialize(OstreamT& os) const override {
-            os << value;
-        }
-
-    protected:
-        BuiltIn() :
-            value{}
-        {
-        }
-        BuiltIn(const StringType& s) :
-            value{ s }
-        {
-        }
-        BuiltIn(StringType&& s) :
-            value{ std::move(s) }
-        {
-        }
-        StringType value;
-    };
-
-
-    class Bool : public BuiltIn {
-    public:
-
-        using StringType = BuiltIn::StringType;
-        using Literals = JSON::Literals;
-
-        explicit Bool(bool b = false) :
-            BuiltIn(impl::to_string(b)), nativeValue{ b }
-        {
-        }
-        explicit Bool(const StringType& s) :
-            BuiltIn(impl::Validator<bool> { }(s))
-        {
-        }
-        explicit Bool(StringType&& s) :
-            BuiltIn(impl::Validator<bool> { }(std::move(s)))
-        {
-        }
-        explicit Bool(const char * s) :
-            Bool(StringType(s))
-        {
-        }
-        bool getNativeValue() const noexcept
-        {
-            return nativeValue;
-        }
-    private:
-        bool nativeValue;
-    };
-
-    
-    class True : public Bool {
-    public:
-        using StringType = Bool::StringType;
-
-        True() :
-            Bool(Literals::value_true())
-        {
-        }
-        explicit True(const StringType& s) :
-            Bool(s)
-        {
-        }
-        explicit True(StringType&& s) :
-            Bool(std::move(s))
-        {
-        }
-        static const char* Literal()
-        {
-            return Literals::value_true();
-        }
-    };
-
-    class False : public Bool{
-    public:
-        using StringType = Bool::StringType;
-
-        False() :
-            Bool(Literals::value_false())
-        {
-        }
-        ;
-        explicit False(const StringType& s) :
-            Bool(s)
-        {
-        }
-        explicit False(StringType&& s) :
-            Bool(std::move(s))
-        {
-        }
-        static const char* Literal()
-        {
-            return Literals::value_false();
-        }
-    };
-
-    class String : public BuiltIn {
-    public:
-        using StringType = BuiltIn::StringType;
-        using OstreamT = BuiltIn::OstreamT;
-
-        String() :
-            BuiltIn(StringType{})
-        {
-        }
-        explicit String(const StringType& t) :
-            BuiltIn(t)
-        {
-        }
-        explicit String(StringType&& t) :
-            BuiltIn(std::move(t))
-        {
-        }
-
-        void serialize(StringType&&, OstreamT& os) const override
-        {
-            serialize(os);
-        }
-
-        void serialize(OstreamT& os) const override
-        {
-            os << Literals::quotation_mark << this->getValue()
-                << Literals::quotation_mark;
-        }
-    };
-
-    class Number : public BuiltIn {
-    public:
-        using StringType = BuiltIn::StringType;
-
-        explicit Number(double d = 0.0) :
-            nativeValue{ d }
-        {
-            std::stringstream ss{};
-            ss << std::scientific << d;
-            this->value = ss.str();
-        }
-        explicit Number(const StringType& s) :
-            BuiltIn(impl::Validator<double> { }(s))
-        {
-        }
-        explicit Number(StringType&& s) :
-            BuiltIn(impl::Validator<double> { }(std::move(s)))
-        {
-        }
-        double getNativeValue() const noexcept
-        {
-            return nativeValue;
-        }
-    private:
-        double nativeValue;
-    };
-
-    class Null : public BuiltIn {
-    public:
-        using StringType = BuiltIn::StringType;
-
-        explicit Null() :
-            BuiltIn(StringType(Literals::value_null()))
-        {
-        }
-        explicit Null(const StringType& s) :
-            BuiltIn(impl::Validator<nullptr_t> { }(s))
-        {
-        }
-        explicit Null(StringType&& s) :
-            BuiltIn(impl::Validator<nullptr_t> { }(std::move(s)))
-        {
-        }
-        nullptr_t getNativeValue() const noexcept
-        {
-            return nullptr;
-        }
-        static const char* Literal()
-        {
-            return Literals::value_null();
-        }
-    };
-
-
-    template<typename T,typename B = void> struct IsJSONType : public std::false_type {
-    };
-
-    template<typename T>
-    struct IsJSONType<
-        T, 
-        std::enable_if_t<std::is_convertible<T*, IObject*>::value>
-         > : public std::true_type {
-    };
-
-    template<typename T, typename ... Args>
-    std::enable_if_t<
-        IsJSONType<T>::value,
-        IObjectPtr> Create(Args&&... args)
-    {
-        return IObjectPtr(new T(std::forward<Args>(args)...));
-    }
-
-
+inline Array::Array()
+{
 }
+
+inline IObject& Array::operator[](const StringType& key)
+{
+    throw TypeError();
+}
+
+inline const IObject& Array::operator[](const StringType& key) const
+{
+    throw TypeError();
+}
+
+inline IObject& Array::operator[](size_t index)
+{
+    if (index >= values.size())
+        throw OutOfRange();
+    return *values[index];
+}
+
+inline const IObject& Array::operator[](size_t index) const
+{
+    if (index >= values.size())
+        throw OutOfRange();
+    return *values[index];
+}
+
+inline const Array::StringType& Array::getValue() const
+{
+    throw TypeError();
+}
+
+inline Array::Container& Array::getValues() 
+{
+    return values;
+}
+
+inline const Array::Container& Array::getValues() const 
+{
+    return values;
+}
+
+inline void Array::emplace(IObjectPtr&& obj) 
+{
+    values.emplace_back(std::move(obj));
+}
+
+inline void Array::emplace(StringType&& name, IObjectPtr&& obj) 
+{
+    throw AggregateTypeError();
+}
+
+inline void Array::serialize(StringType&& indentation, OstreamT& os) const 
+{
+    os << Literals::begin_array << Literals::space;
+    for (auto i = values.begin(); i != values.end();) {
+        (*i)->serialize(std::move(indentation), os);
+        ++i;
+        if (i != values.end())
+            os << Literals::space <<
+            Literals::value_separator << Literals::space;
+    }
+    os << Literals::space << Literals::end_array;
+}
+
+inline void Array::serialize(OstreamT& os) const 
+{
+    os << Literals::begin_array;
+    for (auto i = values.begin(); i != values.end();) {
+        (*i)->serialize(os);
+        ++i;
+        if (i != values.end()) os << Literals::value_separator;
+    }
+    os << Literals::end_array;
+}
+
+inline void Array::accept(IVisitor& v) 
+{
+    v.visit(*this);
+}
+
+inline void Array::accept(IVisitor& v)const
+{
+    v.visit(*this);
+}
+
+inline IObject& BuiltIn::operator[](const StringType& key)
+{
+    throw TypeError();
+}
+
+inline const IObject& BuiltIn::operator[](const StringType& key) const
+{
+    throw TypeError();
+}
+
+inline IObject& BuiltIn::operator[](size_t index)
+{
+    throw TypeError();
+}
+
+inline const IObject& BuiltIn::operator[](size_t index) const
+{
+    throw TypeError();
+}
+
+inline const BuiltIn::StringType& BuiltIn::getValue() const
+{
+    return value;
+}
+
+inline void BuiltIn::serialize(StringType&&, OstreamT& os) const
+{
+    os << value;
+}
+inline void BuiltIn::serialize(OstreamT& os) const 
+{
+    os << value;
+}
+
+inline BuiltIn::BuiltIn() : value{}
+{
+}
+inline BuiltIn::BuiltIn(const StringType& s) : value{ s }
+{
+}
+    
+inline BuiltIn::BuiltIn(StringType&& s) : value{ std::move(s) }
+{
+}
+    
+inline bool Bool::getNativeValue() const noexcept
+{
+    return nativeValue;
+}
+inline Bool::Bool(bool b) : BuiltIn(impl::to_string(b)), nativeValue{ b }
+{
+}
+inline Bool::Bool(const StringType& s) : BuiltIn(impl::Validator<bool> { }(s))
+{
+}
+inline Bool::Bool(StringType&& s) : BuiltIn(impl::Validator<bool> { }(std::move(s)))
+{
+}
+inline Bool::Bool(const char * s) : Bool(StringType(s))
+{
+}
+
+inline True::True() : Bool(Literals::value_true())
+{
+}
+    
+inline True::True(const StringType& s) : Bool(s)
+{
+}
+
+inline True::True(StringType&& s) : Bool(std::move(s))
+{
+}
+    
+inline const char* True::Literal()
+{
+    return Literals::value_true();
+}
+
+inline void True::accept(IVisitor& v)
+{
+    v.visit(*this);
+}
+
+inline void True::accept(IVisitor& v)const
+{
+    v.visit(*this);
+}
+
+
+inline False::False() : Bool(Literals::value_false())
+{
+}
+inline False::False(const StringType& s) : Bool(s)
+{
+}
+inline False::False(StringType&& s) : Bool(std::move(s))
+{
+}
+inline const char* False::Literal()
+{
+    return Literals::value_false();
+}
+
+inline void False::accept(IVisitor& v)
+{
+    v.visit(*this);
+}
+
+inline void False::accept(IVisitor& v)const
+{
+    v.visit(*this);
+}
+
+
+inline String::String() : BuiltIn(StringType{})
+{
+}
+    
+inline String::String(const StringType& t) : BuiltIn(t)
+{
+}
+inline String::String(StringType&& t) : BuiltIn(std::move(t))
+{
+}
+
+inline void String::serialize(StringType&&, OstreamT& os) const
+{
+    serialize(os);
+}
+
+inline void String::serialize(OstreamT& os) const
+{
+    os << Literals::quotation_mark << this->getValue()
+        << Literals::quotation_mark;
+}
+
+inline void String::accept(IVisitor& v)
+{
+    v.visit(*this);
+}
+
+inline void String::accept(IVisitor& v)const
+{
+    v.visit(*this);
+}
+
+
+inline Number::Number(double d) : nativeValue{ d }
+{
+    std::stringstream ss{};
+    ss << std::scientific << d;
+    this->value = ss.str();
+}
+    
+inline Number::Number(const StringType& s) : BuiltIn(impl::Validator<double> { }(s))
+{
+}
+inline Number::Number(StringType&& s) : BuiltIn(impl::Validator<double> { }(std::move(s)))
+{
+}
+
+inline double Number::getNativeValue() const noexcept
+{
+    return nativeValue;
+}
+
+inline void Number::accept(IVisitor& v)
+{
+    v.visit(*this);
+}
+
+inline void Number::accept(IVisitor& v)const
+{
+    v.visit(*this);
+}
+
+
+inline Null::Null() : BuiltIn(StringType(Literals::value_null()))
+{
+}
+inline Null::Null(const StringType& s) : BuiltIn(impl::Validator<nullptr_t> { }(s))
+{
+}
+inline Null::Null(StringType&& s) : BuiltIn(impl::Validator<nullptr_t> { }(std::move(s)))
+{
+}
+inline nullptr_t Null::getNativeValue() const noexcept
+{
+    return nullptr;
+}
+inline const char* Null::Literal()
+{
+    return Literals::value_null();
+}
+
+inline void Null::accept(IVisitor& v)
+{
+    v.visit(*this);
+}
+
+inline void Null::accept(IVisitor& v)const
+{
+    v.visit(*this);
+}
+
+} //namespace JSON
 
 #endif //JSONOBJECTS_H_INCLUDED__

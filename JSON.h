@@ -3,8 +3,11 @@
 
 #include <exception>
 #include <memory>
-#include <iostream>
+#include <iostream> // std::ostream
+#include <string>
 #include <sstream>
+
+#include "JSONFwd.h"
 
 // TODO: Mutable and Immutable objects
 namespace JSON {
@@ -24,7 +27,7 @@ struct OutOfRange: public JSON::Exception {
 struct AttributeNotUnique: public JSON::Exception {
 };
 
-struct IObject;
+
 using IObjectPtr = std::unique_ptr<IObject>;
 
 struct IObject {
@@ -47,8 +50,26 @@ struct IObject {
 
     // Human readable
     virtual void serialize(StringType&& indentation, OstreamT&) const = 0;
-    // Minimal whitespace (transmission syntax)
+    // no whitespace (compact,transmission syntax)
     virtual void serialize(OstreamT&) const = 0;
+    
+    struct IVisitor {
+        virtual void visit(const Object&) = 0;
+        virtual void visit(const Array&) = 0;
+        virtual void visit(const True&) = 0;
+        virtual void visit(const False&) = 0;
+        virtual void visit(const Null&) = 0;
+        virtual void visit(const Number&) = 0;
+        virtual void visit(const String&) = 0;
+
+        virtual ~IVisitor() = default;
+    };
+
+    virtual void accept(IVisitor&) = 0;
+    virtual void accept(IVisitor&)const = 0;
+    using iterator = Iterator;
+    virtual iterator begin() = 0;
+    virtual iterator end() = 0;
 
     virtual ~IObject() = default;
 };
@@ -72,6 +93,6 @@ struct IAggregateObject: public IObject {
     virtual ~IAggregateObject() = default;
 };
 
-}
+} //namespace JSON
 
 #endif //JSON_H_INCLUDED__

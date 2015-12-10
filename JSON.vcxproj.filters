@@ -35,6 +35,18 @@
     <ClInclude Include="JSONLiterals.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="JSONFwd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="JSONIterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="JSONObjectsFwd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="JSONIteratorFwd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="JSONParser.cd" />

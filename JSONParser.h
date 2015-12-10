@@ -10,8 +10,10 @@
 #include <exception>
 #include <locale>
 
+#include "JSONFwd.h"
 #include "JSON.h"
 #include "JSONObjects.h"
+#include "JSONLiterals.h"
 
 // TODO: Add Allocator support for parsers
 // TODO: Add Parsing Startegy (Mutable, Immutable)
@@ -987,7 +989,7 @@ inline ISubParser& StringParser::parseUnicodeEscapeChar(
     return StateTransition(*this, s, p);
 }
 
-} // namespace JSON::impl
+} // namespace impl
 
 
 class Parser: public impl::IParser {
