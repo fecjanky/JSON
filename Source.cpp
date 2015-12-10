@@ -37,7 +37,19 @@ int main(int, char**) try{
     {
         auto objs = ::JSON::parse(json_text3.begin(), json_text3.end());
         auto objs2 = ::JSON::parse(json_text3.begin(), json_text3.end());
-        
+        auto o1 = JSON::Create<JSON::String>("Hello");
+        auto o2 = JSON::Create<JSON::String>("Hello");
+        auto a1 = JSON::Create<JSON::Array>();
+        auto a2 = JSON::Create<JSON::Array>();
+        auto& a1r = static_cast<JSON::Array&>(*a1);
+        auto& a2r = static_cast<JSON::Array&>(*a2);
+        a1r.emplace(JSON::Create<JSON::String>("Hello"));
+        a1r.emplace(JSON::Create<JSON::String>("World"));
+        a2r.emplace(JSON::Create<JSON::String>("Helloa"));
+        a2r.emplace(JSON::Create<JSON::String>("World"));
+        bool eqa = *a1 == *a2;
+
+        bool eqs = *o1 == *o2;
         bool eq = (*objs[0] == *objs2[0]);
         //std::string s = obj["menu"]["popup"]["name"];
         int i = 0;

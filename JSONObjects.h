@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <utility>
 #include <sstream>
+#include <algorithm> //std::equal
 
 #include "JSONLiterals.h"
 #include "JSONObjectsFwd.h"
@@ -230,7 +231,13 @@ inline bool Object::operator==(const IObject& rhs) const
 
 inline bool Object::compare(const Object& o)  const 
 {
-    return o.values == values;
+    if (o.values.size() != values.size())return false;
+    for (auto& x : o.values) {
+        auto it = values.find(x.first);
+        if (it == values.end())return false;
+        if (*x.second != *it->second)return false;
+    }
+    return true;
 }
 
 
@@ -328,7 +335,8 @@ inline bool Array::operator==(const IObject& o) const
 
 inline bool Array::compare(const Array& a)  const
 {
-    return a.values == values;
+    return a.values.size() == values.size() && std::equal(a.values.begin(), a.values.end(), values.begin(), 
+        [](const auto& lhs, const auto& rhs) {return *lhs == *rhs; });
 }
 
 inline IObject& BuiltIn::operator[](const StringType& key)

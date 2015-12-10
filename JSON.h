@@ -72,7 +72,6 @@ struct IObject {
         virtual void visit(const Null&) = 0;
         virtual void visit(const Number&) = 0;
         virtual void visit(const String&) = 0;
-
         virtual ~IVisitor() = default;
     };
 
