@@ -7,11 +7,11 @@
 namespace JSON {
 namespace impl {
 
-struct ObjectIteratorState : public impl::IteratorState {
+struct ObjectIteratorState : public impl::IteratorState, public ObjectEntry {
     using It = Object::Container::const_iterator;
     using UPtr = std::unique_ptr<impl::IteratorState>;
 
-    explicit ObjectIteratorState(It it_ = It{});
+    ObjectIteratorState(It it_,const Object&);
     ObjectIteratorState(const ObjectIteratorState&) = default;
     ObjectIteratorState(ObjectIteratorState&&) = default;
     IObject& nextObj();
@@ -20,22 +20,41 @@ struct ObjectIteratorState : public impl::IteratorState {
     bool operator==(const IteratorState& i)const override;
     bool compare(const ObjectIteratorState& o)const override;
 
-    It it;
 };
 
-struct ArrayIteratorState : public impl::IteratorState {
+struct ArrayIteratorState : public impl::IteratorState, public ArrayEntry {
     using It = Array::Container::const_iterator;
     using UPtr = std::unique_ptr<impl::IteratorState>;
 
-    explicit ArrayIteratorState(It it_ = It{});
+    ArrayIteratorState(It it,const Array&);
     ArrayIteratorState(const ArrayIteratorState&) = default;
     IObject& nextObj();
     static IObject& getObj(It i);
     UPtr clone() const override;
     bool operator==(const IteratorState& i)const override;
     bool compare(const ArrayIteratorState& o)const override;
+};
 
-    It it;
+struct IsAggregateObject : public IObject::IVisitor {
+    IsAggregateObject(const IObject& o_) : o{ o_ }, b {}
+    {
+        o.accept(*this);
+    }
+    operator bool()const noexcept
+    {
+        return b;
+    }
+private:
+    void visit(const Object&o) override
+    {
+        b = true;
+    }
+    void visit(const Array& a) override
+    {
+        b = true;
+    }
+    const IObject& o;
+    bool b;
 };
 
 } // namespace impl
@@ -44,13 +63,15 @@ inline Iterator::Iterator() : root{}
 {
 }
 
-inline Iterator::Iterator(const IObject& o, end_t) : root{&o} {
+inline Iterator::Iterator(const IObject& o, end_t) : root{&o} 
+{
 }
 
 inline Iterator::Iterator(const IObject& o) : root{&o}
 {
     objStack.emplace(&o, nullptr);
 }
+
 inline const IObject& Iterator::operator*()
 {
     return *objStack.top().first;
@@ -87,12 +108,22 @@ inline bool Iterator::operator!=(const Iterator& rhs)const
     
 inline void Iterator::visit(const Object& o)
 {
-    stateful_visit<impl::ObjectIteratorState>(o);
+    statefulVisit(o);
+}
+
+inline void Iterator::visit(const ObjectEntry& o)
+{
+    statefulVisitEntry(o);
 }
 
 inline void Iterator::visit(const Array& a)
 {
-    stateful_visit<impl::ArrayIteratorState>(a);
+    statefulVisit(a);
+}
+
+inline void Iterator::visit(const ArrayEntry& o)
+{
+    statefulVisitEntry(o);
 }
 
 inline void Iterator::visit(const True&)
@@ -128,31 +159,46 @@ inline void Iterator::next_elem()
     }
 }
 
-template<typename StateT, typename Obj>
-inline void Iterator::stateful_visit(const Obj& o) 
+
+template< typename Obj>
+inline void Iterator::statefulVisit(const Obj& o)
 {
-    if (objStack.top().second) {
-        auto& s = static_cast<StateT&>(*objStack.top().second);
-        if (s.it == o.getValues().end()) {
-            next_elem();
-        }
-        else {
-            objStack.emplace(&s.nextObj(), nullptr);
-        }
-    }
-    else if (!o.getValues().empty()) {
-        auto& obj = StateT::getObj(o.getValues().begin());
-        objStack.top().second = StatePtr(new StateT(++o.getValues().begin()));
-        objStack.emplace(&obj, nullptr);
-    }
-    else {
+    using StateT = typename ObjTraits<Obj>::State;
+    if (!objStack.top().second && !o.getValues().empty()) {
+        objStack.top().second =
+            StatePtr(new StateT(o.getValues().begin(), o));
+        auto& next_obj =
+            static_cast<StateT&>(*objStack.top().second);
+        objStack.emplace(&next_obj, nullptr);
+    } else
         next_elem();
+
+}
+
+template<typename Obj>
+inline void Iterator::statefulVisitEntry(const Obj& o)
+{
+    if (o.it == o.parent.getValues().end()) {
+        objStack.pop();
+    } else {
+        auto& obj = o.obj();
+        ++o.it;
+        if (impl::IsAggregateObject(obj))
+            objStack.emplace(&obj, nullptr);
+        else if (o.it == o.parent.getValues().end()) {
+            objStack.pop();
+        }
     }
 }
 
+
+
 namespace impl {
             
-inline ObjectIteratorState::ObjectIteratorState(It it_) : it{ it_ } {}
+inline ObjectIteratorState::ObjectIteratorState(It it,const Object& o) : 
+    ObjectEntry(it,o) 
+{
+}
 
 inline IObject& ObjectIteratorState::nextObj()
 {
@@ -179,7 +225,10 @@ inline bool ObjectIteratorState::compare(const ObjectIteratorState& o)const
     return it == o.it;
 }
 
-inline ArrayIteratorState::ArrayIteratorState(It it_ ) : it{ it_ } {}
+inline ArrayIteratorState::ArrayIteratorState(It it, const Array& a) 
+    : ArrayEntry(it,a) 
+{
+}
         
 inline IObject& ArrayIteratorState::nextObj()
 {

@@ -126,7 +126,7 @@
       <FileName>JSON.h</FileName>
     </TypeIdentifier>
   </Struct>
-  <Struct Name="JSON::IAggregateObject" Collapsed="true">
+  <Struct Name="JSON::AggregateObject" Collapsed="true">
     <Position X="15" Y="7.5" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAQAA=</HashCode>

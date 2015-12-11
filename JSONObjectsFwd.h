@@ -19,12 +19,36 @@ public:
 
 } //namespace impl
 
-class Object : public impl::IteratorIFImpl<IAggregateObject> {
+struct AggregateObject : public IObject {
+    using StringType = IObject::StringType;
+    using IObjectPtr = IObject::IObjectPtr;
+    // for arrays
+    virtual void emplace(IObjectPtr && obj) = 0;
+    // for objects
+    virtual void emplace(StringType&& name, IObjectPtr && obj) = 0;
+
+    // default impl for getValue
+    const StringType& getValue() const override;
+
+    virtual ~AggregateObject() = default;
+};
+
+struct IndividualObject : public IObject {
+    using StringType = IObject::StringType;
+    using IObjectPtr = IObject::IObjectPtr;
+    IObject& operator[](const StringType& key) override;
+    const IObject& operator[](const StringType& key) const override;
+    IObject& operator[](size_t index) override;
+    const IObject& operator[](size_t index) const override;
+    void serialize(StringType&& indentation, OstreamT& os) const override;
+};
+
+class Object : public impl::IteratorIFImpl<AggregateObject> {
 public:
-    using StringType = IAggregateObject::StringType;
-    using OstreamT = IAggregateObject::OstreamT;
-    using IObjectPtr = IAggregateObject::IObjectPtr;
-    using IObject = IAggregateObject::IObject;
+    using StringType = AggregateObject::StringType;
+    using OstreamT = AggregateObject::OstreamT;
+    using IObjectPtr = AggregateObject::IObjectPtr;
+    using IObject = AggregateObject::IObject;
     using Key = StringType;
     using Value = IObjectPtr;
     using Entry = std::pair<const Key, Value>;
@@ -33,10 +57,9 @@ public:
 
     Object();
     IObject& operator[](const StringType& key) override;
-    const IObject& operator[](const StringType& key) const;
+    const IObject& operator[](const StringType& key) const override;
     IObject& operator[](size_t index) override;
-    const IObject& operator[](size_t index) const;
-    virtual const StringType& getValue() const;
+    const IObject& operator[](size_t index) const override;
     const Container& getValues() const;
     void emplace(IObjectPtr && obj) override;
     void emplace(StringType&& name, IObjectPtr && obj) override;
@@ -51,12 +74,28 @@ private:
     Container values;
 };
 
-class Array : public impl::IteratorIFImpl<IAggregateObject> {
+class ObjectEntry : public impl::IteratorIFImpl<IndividualObject> {
 public:
-    using StringType = IAggregateObject::StringType;
-    using OstreamT = IAggregateObject::OstreamT;
-    using IObjectPtr = IAggregateObject::IObjectPtr;
-    using IObject = IAggregateObject::IObject;
+    using It = Object::Container::const_iterator;
+    explicit ObjectEntry(It, const Object& parent);
+    const StringType& getValue() const override;
+    void serialize(OstreamT& os) const override;
+    void accept(IVisitor& v) override;
+    void accept(IVisitor& v)const override;
+    bool operator==(const IObject&) const override;
+    bool compare(const ObjectEntry&)  const override;
+    const IObject& obj() const noexcept;
+
+    mutable It it;
+    const Object& parent;
+};
+
+class Array : public impl::IteratorIFImpl<AggregateObject> {
+public:
+    using StringType = AggregateObject::StringType;
+    using OstreamT = AggregateObject::OstreamT;
+    using IObjectPtr = AggregateObject::IObjectPtr;
+    using IObject = AggregateObject::IObject;
     using Value = IObjectPtr;
     using Container = std::vector<Value>;
     using Literals = JSON::Literals;
@@ -82,7 +121,25 @@ private:
     Container values;
 };
 
-class BuiltIn : public impl::IteratorIFImpl<IObject> {
+
+class ArrayEntry : public impl::IteratorIFImpl<IndividualObject> {
+public:
+    using It = Array::Container::const_iterator;
+    using index_t = It::difference_type;
+    ArrayEntry(It elem, const Array& parent);
+    const StringType& getValue() const override;
+    void serialize(OstreamT& os) const override;
+    void accept(IVisitor& v) override;
+    void accept(IVisitor& v)const override;
+    bool operator==(const IObject&) const override;
+    bool compare(const ArrayEntry&)  const override;
+    index_t index()const noexcept;
+    const IObject& obj() const noexcept;
+    mutable It it;
+    const Array& parent;
+};
+
+class BuiltIn : public impl::IteratorIFImpl<IndividualObject> {
 public:
 
     using StringType = IObject::StringType;
@@ -90,10 +147,6 @@ public:
     using IObjectPtr = IObject::IObjectPtr;
     using Literals = JSON::Literals;
 
-    IObject& operator[](const StringType& key) override;
-    const IObject& operator[](const StringType& key) const override;
-    IObject& operator[](size_t index) override;
-    const IObject& operator[](size_t index) const override;
     virtual const StringType& getValue() const override;
     void serialize(StringType&&, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;

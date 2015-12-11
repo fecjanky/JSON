@@ -58,20 +58,24 @@ struct IObject {
     virtual bool compare(const Bool&)  const {return false;}
     virtual bool compare(const Null&) const {return false;}
     virtual bool compare(const Number&) const {return false;}
-    virtual bool compare(const String&) const {return false;}
+    virtual bool compare(const String&) const { return false; }
+    virtual bool compare(const ObjectEntry&) const { return false; }
+    virtual bool compare(const ArrayEntry&) const {return false;}
     virtual bool operator==(const IObject&) const = 0;
     bool operator!=(const IObject& o) const {
         return !(this->operator==(o));
     }
 
     struct IVisitor {
-        virtual void visit(const Object&) = 0;
-        virtual void visit(const Array&) = 0;
-        virtual void visit(const True&) = 0;
-        virtual void visit(const False&) = 0;
-        virtual void visit(const Null&) = 0;
-        virtual void visit(const Number&) = 0;
-        virtual void visit(const String&) = 0;
+        virtual void visit(const Object&) { }
+        virtual void visit(const ObjectEntry&) { }
+        virtual void visit(const Array&) { }
+        virtual void visit(const ArrayEntry&) { }
+        virtual void visit(const True&) { }
+        virtual void visit(const False&) { }
+        virtual void visit(const Null&) { }
+        virtual void visit(const Number&) { }
+        virtual void visit(const String&) { }
         virtual ~IVisitor() = default;
     };
 
@@ -82,17 +86,6 @@ struct IObject {
     virtual iterator end() const = 0;
 
     virtual ~IObject() = default;
-};
-
-struct IAggregateObject: public IObject {
-    using StringType = IObject::StringType;
-    using IObjectPtr = IObject::IObjectPtr;
-    // for arrays
-    virtual void emplace(IObjectPtr && obj) = 0;
-    // for objects
-    virtual void emplace(StringType&& name, IObjectPtr && obj) = 0;
-
-    virtual ~IAggregateObject() = default;
 };
 
 inline std::ostream& operator <<(std::ostream& os, const IObject& obj)

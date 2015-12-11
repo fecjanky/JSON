@@ -95,17 +95,35 @@ private:
     using State = std::pair<const IObject*, StatePtr>;
 
     void visit(const Object&) override;
+    void visit(const ObjectEntry&) override;
     void visit(const Array&) override;
+    void visit(const ArrayEntry&) override;
     void visit(const True&) override;
     void visit(const False&) override;
     void visit(const Null&) override;
     void visit(const Number&) override;
     void visit(const String&) override;
-        
-    void next_elem();
-    template<typename State, typename Obj>
-    void stateful_visit(const Obj&);
     
+    template<typename T>
+    struct ObjTraits;
+
+    template<>
+    struct ObjTraits<Object> {
+        using State = impl::ObjectIteratorState;
+    };
+
+    template<>
+    struct ObjTraits<Array> {
+        using State = impl::ArrayIteratorState;
+    };
+
+
+    void next_elem();
+    template<typename Obj>
+    void statefulVisit(const Obj&);
+    template<typename Obj>
+    void statefulVisitEntry(const Obj&);
+
     const IObject* root;
     std::stack<State> objStack;
 };

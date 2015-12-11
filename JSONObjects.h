@@ -122,6 +122,37 @@ std::string to_string(bool b)
         
        
 
+inline const AggregateObject::StringType& AggregateObject::getValue() const
+{
+    throw TypeError{};
+}
+
+inline IObject& IndividualObject::operator[](const StringType& key)
+{
+    throw TypeError{};
+}
+
+inline const IObject& IndividualObject::operator[](const StringType& key) const
+{
+    throw TypeError{};
+}
+
+inline IObject& IndividualObject::operator[](size_t index)
+{
+    throw TypeError{};
+}
+
+inline const IObject& IndividualObject::operator[](size_t index) const
+{
+    throw TypeError{};
+}
+
+inline void IndividualObject::serialize(StringType&& indentation, OstreamT& os) const
+{
+    static_cast<const IObject*>(this)->serialize(os);
+}
+
+
 inline Object::Object()
 {
 }
@@ -148,11 +179,6 @@ inline IObject& Object::operator[](size_t index)
 }
 
 inline const IObject& Object::operator[](size_t index) const
-{
-    throw TypeError();
-}
-
-inline  const Object::StringType& Object::getValue() const 
 {
     throw TypeError();
 }
@@ -238,6 +264,47 @@ inline bool Object::compare(const Object& o)  const
         if (*x.second != *it->second)return false;
     }
     return true;
+}
+
+inline ObjectEntry::ObjectEntry(It it_, const Object& parent_) : it{it_},parent{parent_}
+{
+}
+
+inline const ObjectEntry::StringType& ObjectEntry::getValue() const
+{
+    return it->second->getValue();
+}
+
+inline void ObjectEntry::serialize(OstreamT& os) const
+{
+    os << Literals::quotation_mark << it->first << Literals::quotation_mark <<
+        Literals::name_separator;
+    it->second->serialize(os);
+}
+
+inline void ObjectEntry::accept(IVisitor& v)
+{
+    v.visit(*this);
+}
+
+inline void ObjectEntry::accept(IVisitor& v)const
+{
+    v.visit(*this);
+}
+
+inline bool ObjectEntry::operator==(const IObject& o) const
+{
+    return o.compare(*this);
+}
+
+inline bool ObjectEntry::compare(const ObjectEntry& e)  const
+{
+    return e.it->first == it->first && *e.it->second == *it->second;
+}
+
+inline const IObject& ObjectEntry::obj() const noexcept
+{
+    return *it->second;
 }
 
 
@@ -339,24 +406,49 @@ inline bool Array::compare(const Array& a)  const
         [](const auto& lhs, const auto& rhs) {return *lhs == *rhs; });
 }
 
-inline IObject& BuiltIn::operator[](const StringType& key)
+inline ArrayEntry::ArrayEntry(It it_, const Array& parent_) : it{it_}, parent{ parent_ }
 {
-    throw TypeError();
+
 }
 
-inline const IObject& BuiltIn::operator[](const StringType& key) const
+inline const ArrayEntry::StringType& ArrayEntry::getValue() const
 {
-    throw TypeError();
+    return (*it)->getValue();
 }
 
-inline IObject& BuiltIn::operator[](size_t index)
+inline void ArrayEntry::serialize(OstreamT& os) const
 {
-    throw TypeError();
+    (*it)->serialize(os);
 }
 
-inline const IObject& BuiltIn::operator[](size_t index) const
+inline void ArrayEntry::accept(IVisitor& v)
 {
-    throw TypeError();
+    v.visit(*this);
+}
+
+inline void ArrayEntry::accept(IVisitor& v)const
+{
+    v.visit(*this);
+}
+
+inline bool ArrayEntry::operator==(const IObject& o) const
+{
+    return o.compare(*this);
+}
+
+inline bool ArrayEntry::compare(const ArrayEntry& a)  const
+{
+    return a.index() == index() && a.obj() == obj();
+}
+
+inline ArrayEntry::index_t ArrayEntry::index()const noexcept
+{
+    return it - parent.getValues().begin();
+}
+
+inline const IObject& ArrayEntry::obj() const noexcept
+{
+    return **it;
 }
 
 inline const BuiltIn::StringType& BuiltIn::getValue() const

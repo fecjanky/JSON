@@ -3,9 +3,11 @@
 
 namespace JSON {
     struct IObject;
-    struct IAggregateObject;
+    struct AggregateObject;
     class Object;
+    class ObjectEntry;
     class Array;
+    class ArrayEntry;
     class BuiltIn;
     class Bool;
     class True;
