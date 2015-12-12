@@ -49,6 +49,21 @@ Iterator IteratorIFImpl<IF>::end() const {
     return Iterator { *this, Iterator::end };
 }
 
+template<class IF, class Impl>
+bool CompareImpl<IF,Impl>::operator==(const IObject& o) const noexcept {
+    return o.compare(static_cast<const Impl&>(*this));
+}
+
+template<class IF, class Impl>
+void VisitorImpl<IF,Impl>::accept(IVisitor& v) {
+    v.visit(static_cast<Impl&>(*this));
+}
+
+template<class IF, class Impl>
+void VisitorImpl<IF, Impl>::accept(IVisitor& v) const {
+    v.visit(static_cast<const Impl&>(*this));
+}
+
 template<typename T>
 struct Validator;
 
@@ -221,19 +236,7 @@ inline void Object::serialize(OstreamT& os) const {
     os << Literals::end_object;
 }
 
-inline void Object::accept(IVisitor& v) {
-    v.visit(*this);
-}
-
-inline void Object::accept(IVisitor& v) const {
-    v.visit(*this);
-}
-
-inline bool Object::operator==(const IObject& rhs) const {
-    return rhs.compare(*this);
-}
-
-inline bool Object::compare(const Object& o) const {
+inline bool Object::compare(const Object& o) const noexcept {
     if (o.values.size() != values.size())
         return false;
     for (auto& x : o.values) {
@@ -260,19 +263,8 @@ inline void ObjectEntry::serialize(OstreamT& os) const {
     it->second->serialize(os);
 }
 
-inline void ObjectEntry::accept(IVisitor& v) {
-    v.visit(*this);
-}
 
-inline void ObjectEntry::accept(IVisitor& v) const {
-    v.visit(*this);
-}
-
-inline bool ObjectEntry::operator==(const IObject& o) const {
-    return o.compare(*this);
-}
-
-inline bool ObjectEntry::compare(const ObjectEntry& e) const {
+inline bool ObjectEntry::compare(const ObjectEntry& e) const noexcept {
     return e.it->first == it->first && *e.it->second == *it->second;
 }
 
@@ -346,19 +338,7 @@ inline void Array::serialize(OstreamT& os) const {
     os << Literals::end_array;
 }
 
-inline void Array::accept(IVisitor& v) {
-    v.visit(*this);
-}
-
-inline void Array::accept(IVisitor& v) const {
-    v.visit(*this);
-}
-
-inline bool Array::operator==(const IObject& o) const {
-    return o.compare(*this);
-}
-
-inline bool Array::compare(const Array& a) const {
+inline bool Array::compare(const Array& a) const noexcept {
     return a.values.size() == values.size()
             && std::equal(a.values.begin(), a.values.end(), values.begin(),
                 [](const auto& lhs, const auto& rhs) {return *lhs == *rhs;});
@@ -376,19 +356,7 @@ inline void ArrayEntry::serialize(OstreamT& os) const {
     (*it)->serialize(os);
 }
 
-inline void ArrayEntry::accept(IVisitor& v) {
-    v.visit(*this);
-}
-
-inline void ArrayEntry::accept(IVisitor& v) const {
-    v.visit(*this);
-}
-
-inline bool ArrayEntry::operator==(const IObject& o) const {
-    return o.compare(*this);
-}
-
-inline bool ArrayEntry::compare(const ArrayEntry& a) const {
+inline bool ArrayEntry::compare(const ArrayEntry& a) const noexcept {
     return a.index() == index() && a.obj() == obj();
 }
 
@@ -427,83 +395,63 @@ inline bool Bool::getNativeValue() const noexcept {
 }
 
 inline Bool::Bool(bool b) :
-        BuiltIn(impl::to_string(b)), nativeValue { b } {
+    Base(impl::to_string(b)), nativeValue { b } {
 }
 
 inline Bool::Bool(const StringType& s) :
-        BuiltIn(impl::Validator<bool> { }(s)) {
+    Base(impl::Validator<bool> { }(s)) {
 }
 
 inline Bool::Bool(StringType&& s) :
-        BuiltIn(impl::Validator<bool> { }(std::move(s))) {
+    Base(impl::Validator<bool> { }(std::move(s))) {
 }
 
 inline Bool::Bool(const char * s) :
         Bool(StringType(s)) {
 }
 
-inline bool Bool::operator==(const IObject& o) const {
-    return o.compare(*this);
-}
-
-inline bool Bool::compare(const Bool& b) const {
+inline bool Bool::compare(const Bool& b) const noexcept {
     return b.nativeValue == nativeValue;
 }
 
 inline True::True() :
-        Bool(Literals::value_true()) {
+    Base(Literals::value_true()) {
 }
 
 inline True::True(const StringType& s) :
-        Bool(s) {
+    Base(s) {
 }
 
 inline True::True(StringType&& s) :
-        Bool(std::move(s)) {
+    Base(std::move(s)) {
 }
 
 inline const char* True::Literal() {
     return Literals::value_true();
 }
 
-inline void True::accept(IVisitor& v) {
-    v.visit(*this);
-}
-
-inline void True::accept(IVisitor& v) const {
-    v.visit(*this);
-}
-
 inline False::False() :
-        Bool(Literals::value_false()) {
+    Base(Literals::value_false()) {
 }
 inline False::False(const StringType& s) :
-        Bool(s) {
+    Base(s) {
 }
 inline False::False(StringType&& s) :
-        Bool(std::move(s)) {
+    Base(std::move(s)) {
 }
 inline const char* False::Literal() {
     return Literals::value_false();
 }
 
-inline void False::accept(IVisitor& v) {
-    v.visit(*this);
-}
-
-inline void False::accept(IVisitor& v) const {
-    v.visit(*this);
-}
-
 inline String::String() :
-        BuiltIn(StringType { }) {
+    Base(StringType { }) {
 }
 
 inline String::String(const StringType& t) :
-        BuiltIn(t) {
+    Base(t) {
 }
 inline String::String(StringType&& t) :
-        BuiltIn(std::move(t)) {
+    Base(std::move(t)) {
 }
 
 inline void String::serialize(StringType&&, OstreamT& os) const {
@@ -515,19 +463,7 @@ inline void String::serialize(OstreamT& os) const {
             << Literals::quotation_mark;
 }
 
-inline void String::accept(IVisitor& v) {
-    v.visit(*this);
-}
-
-inline void String::accept(IVisitor& v) const {
-    v.visit(*this);
-}
-
-inline bool String::operator==(const IObject& o) const {
-    return o.compare(*this);
-}
-
-inline bool String::compare(const String& s) const {
+inline bool String::compare(const String& s) const noexcept {
     return s.getValue() == getValue();
 }
 
@@ -539,43 +475,31 @@ inline Number::Number(double d) :
 }
 
 inline Number::Number(const StringType& s) :
-        BuiltIn(impl::Validator<double> { }(s)) {
+    Base(impl::Validator<double> { }(s)) {
 }
 
 inline Number::Number(StringType&& s) :
-        BuiltIn(impl::Validator<double> { }(std::move(s))) {
+    Base(impl::Validator<double> { }(std::move(s))) {
 }
 
 inline double Number::getNativeValue() const noexcept {
     return nativeValue;
 }
 
-inline void Number::accept(IVisitor& v) {
-    v.visit(*this);
-}
-
-inline void Number::accept(IVisitor& v) const {
-    v.visit(*this);
-}
-
-inline bool Number::operator==(const IObject& o) const {
-    return o.compare(*this);
-}
-
-inline bool Number::compare(const Number& n) const {
+inline bool Number::compare(const Number& n) const noexcept {
     return n.nativeValue == nativeValue;
 }
 
 inline Null::Null() :
-        BuiltIn(StringType(Literals::value_null())) {
+    Base(StringType(Literals::value_null())) {
 }
 
 inline Null::Null(const StringType& s) :
-        BuiltIn(impl::Validator<std::nullptr_t> { }(s)) {
+    Base(impl::Validator<std::nullptr_t> { }(s)) {
 }
 
 inline Null::Null(StringType&& s) :
-        BuiltIn(impl::Validator<nullptr_t> { }(std::move(s))) {
+    Base(impl::Validator<nullptr_t> { }(std::move(s))) {
 }
 
 inline nullptr_t Null::getNativeValue() const noexcept {
@@ -586,19 +510,7 @@ inline const char* Null::Literal() {
     return Literals::value_null();
 }
 
-inline void Null::accept(IVisitor& v) {
-    v.visit(*this);
-}
-
-inline void Null::accept(IVisitor& v) const {
-    v.visit(*this);
-}
-
-inline bool Null::operator==(const IObject& o) const {
-    return o.compare(*this);
-}
-
-inline bool Null::compare(const Null&) const {
+inline bool Null::compare(const Null&) const noexcept {
     return true;
 }
 

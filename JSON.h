@@ -71,32 +71,32 @@ struct IObject {
      // no whitespace (compact,transmission syntax)
     virtual void serialize(OstreamT&) const = 0;
 
-    virtual bool compare(const Object&) const {
+    virtual bool compare(const Object&) const noexcept {
         return false;
     }
-    virtual bool compare(const Array&) const {
+    virtual bool compare(const Array&) const noexcept {
         return false;
     }
-    virtual bool compare(const Bool&) const {
+    virtual bool compare(const Bool&) const noexcept {
         return false;
     }
-    virtual bool compare(const Null&) const {
+    virtual bool compare(const Null&) const noexcept {
         return false;
     }
-    virtual bool compare(const Number&) const {
+    virtual bool compare(const Number&) const noexcept {
         return false;
     }
-    virtual bool compare(const String&) const {
+    virtual bool compare(const String&) const noexcept {
         return false;
     }
-    virtual bool compare(const ObjectEntry&) const {
+    virtual bool compare(const ObjectEntry&) const noexcept {
         return false;
     }
-    virtual bool compare(const ArrayEntry&) const {
+    virtual bool compare(const ArrayEntry&) const noexcept {
         return false;
     }
-    virtual bool operator==(const IObject&) const = 0;
-    bool operator!=(const IObject& o) const {
+    virtual bool operator==(const IObject&) const noexcept = 0;
+    bool operator!=(const IObject& o) const noexcept {
         return !(this->operator==(o));
     }
 
