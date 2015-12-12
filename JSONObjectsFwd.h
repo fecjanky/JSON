@@ -1,39 +1,61 @@
-#ifndef JSONOBJECTSFWD_H_INCLUDED__
-#define JSONOBJECTSFWD_H_INCLUDED__
+// Copyright (c) 2015 Ferenc Nandor Janky
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+#ifndef JSONOBJECTSFWD_H_
+#define JSONOBJECTSFWD_H_
 
 #include <unordered_map>
-#include <utility> // pair
-#include <vector> 
+#include <utility>  // pair
+#include <vector>
+#include <cstddef>  // nullptr_t
 
+#include "JSONFwd.h"
 #include "JSON.h"
 
 namespace JSON {
 namespace impl {
 
 template<class IF>
-class IteratorIFImpl : public IF {
-public:
+class IteratorIFImpl: public IF {
+ public:
     Iterator begin() const override;
     Iterator end() const override;
 };
 
-} //namespace impl
+}  // namespace impl
 
-struct AggregateObject : public IObject {
+struct AggregateObject: public IObject {
     using StringType = IObject::StringType;
     using IObjectPtr = IObject::IObjectPtr;
-    // for arrays
+     // for arrays
     virtual void emplace(IObjectPtr && obj) = 0;
-    // for objects
+     // for objects
     virtual void emplace(StringType&& name, IObjectPtr && obj) = 0;
 
-    // default impl for getValue
+     // default impl for getValue
     const StringType& getValue() const override;
 
     virtual ~AggregateObject() = default;
 };
 
-struct IndividualObject : public IObject {
+struct IndividualObject: public IObject {
     using StringType = IObject::StringType;
     using IObjectPtr = IObject::IObjectPtr;
     IObject& operator[](const StringType& key) override;
@@ -43,8 +65,8 @@ struct IndividualObject : public IObject {
     void serialize(StringType&& indentation, OstreamT& os) const override;
 };
 
-class Object : public impl::IteratorIFImpl<AggregateObject> {
-public:
+class Object: public impl::IteratorIFImpl<AggregateObject> {
+ public:
     using StringType = AggregateObject::StringType;
     using OstreamT = AggregateObject::OstreamT;
     using IObjectPtr = AggregateObject::IObjectPtr;
@@ -66,32 +88,32 @@ public:
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     void accept(IVisitor& v) override;
-    void accept(IVisitor& v)const override;
+    void accept(IVisitor& v) const override;
     bool operator==(const IObject&) const override;
-    bool compare(const Object&)  const override;
+    bool compare(const Object&) const override;
 
-private:
+ private:
     Container values;
 };
 
-class ObjectEntry : public impl::IteratorIFImpl<IndividualObject> {
-public:
+class ObjectEntry: public impl::IteratorIFImpl<IndividualObject> {
+ public:
     using It = Object::Container::const_iterator;
     explicit ObjectEntry(It, const Object& parent);
     const StringType& getValue() const override;
     void serialize(OstreamT& os) const override;
     void accept(IVisitor& v) override;
-    void accept(IVisitor& v)const override;
+    void accept(IVisitor& v) const override;
     bool operator==(const IObject&) const override;
-    bool compare(const ObjectEntry&)  const override;
+    bool compare(const ObjectEntry&) const override;
     const IObject& obj() const noexcept;
 
     mutable It it;
     const Object& parent;
 };
 
-class Array : public impl::IteratorIFImpl<AggregateObject> {
-public:
+class Array: public impl::IteratorIFImpl<AggregateObject> {
+ public:
     using StringType = AggregateObject::StringType;
     using OstreamT = AggregateObject::OstreamT;
     using IObjectPtr = AggregateObject::IObjectPtr;
@@ -105,7 +127,7 @@ public:
     const IObject& operator[](const StringType& key) const override;
     IObject& operator[](size_t index) override;
     const IObject& operator[](size_t index) const override;
-    virtual const StringType& getValue() const override;
+    const StringType& getValue() const override;
     Container& getValues();
     const Container& getValues() const;
     void emplace(IObjectPtr&& obj) override;
@@ -113,73 +135,69 @@ public:
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     void accept(IVisitor& v) override;
-    void accept(IVisitor& v)const override;
+    void accept(IVisitor& v) const override;
     bool operator==(const IObject&) const override;
-    bool compare(const Array&)  const override;
+    bool compare(const Array&) const override;
 
-private:
+ private:
     Container values;
 };
 
-
-class ArrayEntry : public impl::IteratorIFImpl<IndividualObject> {
-public:
+class ArrayEntry: public impl::IteratorIFImpl<IndividualObject> {
+ public:
     using It = Array::Container::const_iterator;
     using index_t = It::difference_type;
     ArrayEntry(It elem, const Array& parent);
     const StringType& getValue() const override;
     void serialize(OstreamT& os) const override;
     void accept(IVisitor& v) override;
-    void accept(IVisitor& v)const override;
+    void accept(IVisitor& v) const override;
     bool operator==(const IObject&) const override;
-    bool compare(const ArrayEntry&)  const override;
-    index_t index()const noexcept;
+    bool compare(const ArrayEntry&) const override;
+    index_t index() const noexcept;
     const IObject& obj() const noexcept;
     mutable It it;
     const Array& parent;
 };
 
-class BuiltIn : public impl::IteratorIFImpl<IndividualObject> {
-public:
-
+class BuiltIn: public impl::IteratorIFImpl<IndividualObject> {
+ public:
     using StringType = IObject::StringType;
     using OstreamT = IObject::OstreamT;
     using IObjectPtr = IObject::IObjectPtr;
     using Literals = JSON::Literals;
 
-    virtual const StringType& getValue() const override;
+    const StringType& getValue() const override;
     void serialize(StringType&&, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
-protected:
+ protected:
     BuiltIn();
-    BuiltIn(const StringType& s);
-    BuiltIn(StringType&& s);
+    explicit BuiltIn(const StringType& s);
+    explicit BuiltIn(StringType&& s);
     StringType value;
 };
 
-class Bool : public BuiltIn {
-public:
-
+class Bool: public BuiltIn {
+ public:
     using StringType = BuiltIn::StringType;
     using Literals = JSON::Literals;
 
     bool getNativeValue() const noexcept;
 
     bool operator==(const IObject&) const override;
-    bool compare(const Bool&)  const override;
+    bool compare(const Bool&) const override;
 
-protected:
+ protected:
     explicit Bool(bool b = false);
     explicit Bool(const StringType& s);
     explicit Bool(StringType&& s);
     explicit Bool(const char * s);
-private:
+ private:
     bool nativeValue;
 };
 
-
-class True : public Bool {
-public:
+class True: public Bool {
+ public:
     using StringType = Bool::StringType;
 
     True();
@@ -187,12 +205,11 @@ public:
     explicit True(StringType&& s);
     static const char* Literal();
     void accept(IVisitor& v) override;
-    void accept(IVisitor& v)const override;
-
+    void accept(IVisitor& v) const override;
 };
 
-class False : public Bool {
-public:
+class False: public Bool {
+ public:
     using StringType = Bool::StringType;
 
     False();
@@ -200,11 +217,11 @@ public:
     explicit False(StringType&& s);
     static const char* Literal();
     void accept(IVisitor& v) override;
-    void accept(IVisitor& v)const override;
+    void accept(IVisitor& v) const override;
 };
 
-class String : public BuiltIn {
-public:
+class String: public BuiltIn {
+ public:
     using StringType = BuiltIn::StringType;
     using OstreamT = BuiltIn::OstreamT;
 
@@ -214,15 +231,14 @@ public:
     void serialize(StringType&&, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     void accept(IVisitor& v) override;
-    void accept(IVisitor& v)const override;
+    void accept(IVisitor& v) const override;
 
     bool operator==(const IObject&) const override;
-    bool compare(const String&)  const override;
-
+    bool compare(const String&) const override;
 };
 
-class Number : public BuiltIn {
-public:
+class Number: public BuiltIn {
+ public:
     using StringType = BuiltIn::StringType;
 
     explicit Number(double d = 0.0);
@@ -230,30 +246,31 @@ public:
     explicit Number(StringType&& s);
     double getNativeValue() const noexcept;
     void accept(IVisitor& v) override;
-    void accept(IVisitor& v)const override;
+    void accept(IVisitor& v) const override;
     bool operator==(const IObject&) const override;
-    bool compare(const Number&)  const override;
+    bool compare(const Number&) const override;
 
-private:
+ private:
     double nativeValue;
 };
 
-class Null : public BuiltIn {
-public:
+class Null: public BuiltIn {
+ public:
     using StringType = BuiltIn::StringType;
 
-    explicit Null();
+    Null();
     explicit Null(const StringType& s);
     explicit Null(StringType&& s);
-    nullptr_t getNativeValue() const noexcept;
+    std::nullptr_t getNativeValue() const noexcept;
     static const char* Literal();
     void accept(IVisitor& v) override;
-    void accept(IVisitor& v)const override;
+    void accept(IVisitor& v) const override;
     bool operator==(const IObject&) const override;
-    bool compare(const Null&)  const override;
+    bool compare(const Null&) const override;
 };
 
-template<typename T, typename B = void> struct IsJSONType : public std::false_type {
+template<typename T, typename B = void>
+struct IsJSONType : public std::false_type {
 };
 
 template<typename T>
@@ -264,13 +281,10 @@ struct IsJSONType<
 };
 
 template<typename T, typename ... Args>
-std::enable_if_t<
-    IsJSONType<T>::value,
-    IObjectPtr> Create(Args&&... args)
-{
+std::enable_if_t<IsJSONType<T>::value, IObjectPtr> Create(Args&&... args) {
     return IObjectPtr(new T(std::forward<Args>(args)...));
 }
-    
-} //namespace JSON
 
-#endif //JSONOBJECTSFWD_H_INCLUDED__
+}  // namespace JSON
+
+#endif  // JSONOBJECTSFWD_H_
