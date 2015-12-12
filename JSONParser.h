@@ -22,13 +22,14 @@
 #define JSONPARSER_H_
 
 #include <type_traits>
-#include <utility>
+#include <utility>  // pair
 #include <string>
 #include <tuple>
 #include <vector>
 #include <stack>
 #include <exception>
-#include <locale>
+#include <locale>  // is_digit
+#include <functional>  // function
 
 #include "JSONFwd.h"
 #include "JSON.h"
@@ -55,7 +56,7 @@ const char* GetLiteral() {
 }
 
 inline bool IsWhitespace(char c) {
-    for (auto w : JSON::Literals::whitespace())
+    for (auto w : JSON::Literals::Whitespace())
         if (std::char_traits<char>::eq(c, w))
             return true;
     return false;
@@ -94,13 +95,21 @@ struct NoOp {
 };
 
 struct Store {
+    static char DefaultTransform(char c) noexcept {
+        return c;
+    }
+    using Transformer = std::function<char(char)noexcept>;
+    explicit Store(Transformer t = Transformer{ DefaultTransform }) :
+        transformer{ t } {}
     template<typename ParserT, typename StateT>
     ISubParser& operator()(ParserT& current_parser, StateT& s, IParser&p) {
         static_assert(std::is_same<std::string, decltype(s.token)>::value,
                 "State member token is not type of string");
-        s.token.push_back(p.getCurrentChar());
+        s.token.push_back(transformer(p.getCurrentChar()));
         return current_parser;
     }
+private:
+    Transformer transformer;
 };
 
 template<typename NextParserT>
@@ -325,7 +334,7 @@ inline IObjectPtr NumberParser::State::getObject() {
 }
 
 inline const char* NumberParser::getFirstSymbolSet() {
-    return Literals::begin_number();
+    return Literals::BeginNumber();
 }
 
 inline NumberParser::StatePtr NumberParser::getInitState() {
@@ -355,7 +364,7 @@ inline ISubParser& NumberParser::startingZero(ISubParserState& state,
         IParser& p) {
     using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<L::decimal_point> { }, Store { },
+            std::make_tuple(IsLiteral<L::decimalPoint> { }, Store { },
                     &NumberParser::fractionPartStart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
@@ -365,9 +374,9 @@ inline ISubParser& NumberParser::integerPart(ISubParserState& state,
     using L = Literals;
     return StateTransition(*this, state, p,
             std::make_tuple(IsDigit { }, Store { }, &NumberParser::integerPart),
-            std::make_tuple(IsLiteral<L::decimal_point> { }, Store { },
+            std::make_tuple(IsLiteral<L::decimalPoint> { }, Store { },
                     &NumberParser::fractionPartStart),
-            std::make_tuple(IsLiteral<L::exponent_upper, L::exponent_lower> { },
+            std::make_tuple(IsLiteral<L::exponentUpper, L::exponentLower> { },
                     Store { }, &NumberParser::exponentPartStart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
@@ -385,7 +394,7 @@ inline ISubParser& NumberParser::fractionPart(ISubParserState& state,
     return StateTransition(*this, state, p,
             std::make_tuple(IsDigit { }, Store { },
                     &NumberParser::fractionPart),
-            std::make_tuple(IsLiteral<L::exponent_upper, L::exponent_lower> { },
+            std::make_tuple(IsLiteral<L::exponentUpper, L::exponentLower> { },
                     Store { }, &NumberParser::exponentPartStart),
             std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
 }
@@ -425,7 +434,7 @@ inline IObjectPtr ObjectParser::State::getObject() {
 }
 
 inline char ObjectParser::getFirstSymbolSet() {
-    return Literals::begin_object;
+    return Literals::beginObject;
 }
 
 inline ObjectParser::StatePtr ObjectParser::getInitState() {
@@ -434,16 +443,16 @@ inline ObjectParser::StatePtr ObjectParser::getInitState() {
 
 inline ISubParser& ObjectParser::start(ISubParserState& s, IParser& p) {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsLiteral<Literals::begin_object> { }, NoOp { },
+            std::make_tuple(IsLiteral<Literals::beginObject> { }, NoOp { },
                     &ObjectParser::parseKey));
 }
 
 inline ISubParser& ObjectParser::parseKey(ISubParserState& s, IParser& p) {
     return StateTransition(*this, s, p,
             std::make_tuple(IsWhitespace, NoOp { }, &ObjectParser::parseKey),
-            std::make_tuple(IsLiteral<Literals::end_object> { }, NoOpReturn { },
+            std::make_tuple(IsLiteral<Literals::endObject> { }, NoOpReturn { },
                     nullptr),
-            std::make_tuple(IsLiteral<Literals::quotation_mark> { },
+            std::make_tuple(IsLiteral<Literals::quotationMark> { },
                     Call<StringParser> { }, &ObjectParser::retrieveKey));
 }
 
@@ -458,7 +467,7 @@ inline ISubParser& ObjectParser::parseSeparator(ISubParserState& s,
     return StateTransition(*this, s, p,
             std::make_tuple(IsWhitespace, NoOp { },
                     &ObjectParser::parseSeparator),
-            std::make_tuple(IsLiteral<Literals::name_separator> { }, NoOp { },
+            std::make_tuple(IsLiteral<Literals::nameSeparator> { }, NoOp { },
                     &ObjectParser::parseValue));
 }
 
@@ -482,9 +491,9 @@ inline ISubParser& ObjectParser::retrieveValue(ISubParserState& s, IParser& p) {
 ISubParser& ObjectParser::nextMember(ISubParserState& s, IParser& p) {
     return StateTransition(*this, s, p,
             std::make_tuple(IsWhitespace, NoOp { }, &ObjectParser::nextMember),
-            std::make_tuple(IsLiteral<Literals::end_object> { }, NoOpReturn { },
+            std::make_tuple(IsLiteral<Literals::endObject> { }, NoOpReturn { },
                     nullptr),
-            std::make_tuple(IsLiteral<Literals::value_separator> { }, NoOp { },
+            std::make_tuple(IsLiteral<Literals::valueSeparator> { }, NoOp { },
                     &ObjectParser::parseKey));
 }
 
@@ -498,7 +507,7 @@ inline IObjectPtr ArrayParser::State::getObject() {
 }
 
 inline char ArrayParser::getFirstSymbolSet() {
-    return Literals::begin_array;
+    return Literals::beginArray;
 }
 
 inline ArrayParser::StatePtr ArrayParser::getInitState() {
@@ -507,7 +516,7 @@ inline ArrayParser::StatePtr ArrayParser::getInitState() {
 
 inline ISubParser& ArrayParser::start(ISubParserState& s, IParser& p) {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsLiteral<Literals::begin_array> { }, NoOp { },
+            std::make_tuple(IsLiteral<Literals::beginArray> { }, NoOp { },
                     &ArrayParser::parseValue));
 }
 
@@ -530,14 +539,14 @@ inline ISubParser& ArrayParser::retrieveValue(ISubParserState& s, IParser& p) {
 ISubParser& ArrayParser::nextMember(ISubParserState& s, IParser& p) {
     return StateTransition(*this, s, p,
             std::make_tuple(IsWhitespace, NoOp { }, &ArrayParser::nextMember),
-            std::make_tuple(IsLiteral<Literals::end_array> { }, NoOpReturn { },
+            std::make_tuple(IsLiteral<Literals::endArray> { }, NoOpReturn { },
                     nullptr),
-            std::make_tuple(IsLiteral<Literals::value_separator> { }, NoOp { },
+            std::make_tuple(IsLiteral<Literals::valueSeparator> { }, NoOp { },
                     &ArrayParser::parseValue));
 }
 
 inline const char* WSParser::getFirstSymbolSet() {
-    return Literals::whitespace_string();
+    return Literals::WhitespaceString();
 }
 
 inline WSParser::StatePtr WSParser::getInitState() {
@@ -557,7 +566,7 @@ inline IObjectPtr StringParser::State::getObject() {
 }
 
 inline char StringParser::getFirstSymbolSet() {
-    return Literals::quotation_mark;
+    return Literals::quotationMark;
 }
 
 inline StringParser::StatePtr StringParser::getInitState() {
@@ -566,15 +575,15 @@ inline StringParser::StatePtr StringParser::getInitState() {
 
 inline ISubParser& StringParser::start(ISubParserState& s, IParser& p) {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsLiteral<Literals::quotation_mark> { }, NoOp { },
+            std::make_tuple(IsLiteral<Literals::quotationMark> { }, NoOp { },
                     &StringParser::parseChar));
 }
 
 inline ISubParser& StringParser::parseChar(ISubParserState& s, IParser& p) {
     return StateTransition(*this, s, p,
-            std::make_tuple(IsLiteral<Literals::quotation_mark> { },
+            std::make_tuple(IsLiteral<Literals::quotationMark> { },
                     Return<MyJSONType> { }, nullptr),
-            std::make_tuple(IsLiteral<Literals::string_escape> { }, NoOp { },
+            std::make_tuple(IsLiteral<Literals::stringEscape> { }, NoOp { },
                     &StringParser::parseEscapeChar),
             std::make_tuple(IsStringChar { }, Store { },
                     &StringParser::parseChar));
@@ -584,14 +593,15 @@ inline ISubParser& StringParser::parseEscapeChar(ISubParserState& s,
         IParser& p) {
     return StateTransition(*this, s, p,
             std::make_tuple(
-                    IsLiteral<JSON::Literals::string_unicode_escape> { },
+                    IsLiteral<JSON::Literals::stringUnicodeEscape> { },
                     NoOp { }, &StringParser::parseUnicodeEscapeChar),
             std::make_tuple([](char c) -> bool {
-                for (auto e : JSON::Literals::string_escapes())
+                for (auto e : JSON::Literals::StringEscapes())
                     if (std::char_traits<char>::eq(e, c))
                         return true;
                 return false;
-            }, Store { }, &StringParser::parseChar));
+            }, Store { JSON::Literals::EscapeToNative },
+               &StringParser::parseChar));
 }
 
 inline ISubParser& StringParser::parseUnicodeEscapeChar(ISubParserState& s,

@@ -101,7 +101,7 @@ struct Validator<std::nullptr_t> {
  private:
     template<typename StringType>
     StringType&& validate(StringType&& str) const {
-        if (str != std::remove_reference_t<StringType>(Literals::value_null()))
+        if (str != std::remove_reference_t<StringType>(Literals::ValueNull()))
             throw ValueError();
         return std::forward<StringType>(str);
     }
@@ -119,8 +119,8 @@ struct Validator<bool> {
  private:
     template<typename StringType>
     StringType&& validate(StringType&& str) const {
-        if (str != std::basic_string<char>(Literals::value_false())
-                && str != std::string(Literals::value_true()))
+        if (str != std::basic_string<char>(Literals::ValueFalse())
+                && str != std::string(Literals::ValueTrue()))
             throw ValueError();
         return std::forward<StringType>(str);
     }
@@ -128,9 +128,9 @@ struct Validator<bool> {
 
 std::string to_string(bool b) {
     if (b)
-        return std::string(Literals::value_true());
+        return std::string(Literals::ValueTrue());
     else
-        return std::string(Literals::value_false());
+        return std::string(Literals::ValueFalse());
 }
 
 }  // namespace impl
@@ -201,39 +201,39 @@ inline void Object::emplace(StringType&& name, IObjectPtr && obj) {
 }
 
 inline void Object::serialize(StringType&& indentation, OstreamT& os) const {
-    os << Literals::newline << indentation << Literals::begin_object
+    os << Literals::newline << indentation << Literals::beginObject
             << Literals::newline;
     indentation.push_back(Literals::space);
     indentation.push_back(Literals::space);
     for (auto i = values.begin(); i != values.end();) {
-        os << indentation << Literals::quotation_mark << i->first
-                << Literals::quotation_mark << Literals::space
-                << Literals::name_separator << Literals::space;
+        os << indentation << Literals::quotationMark << i->first
+                << Literals::quotationMark << Literals::space
+                << Literals::nameSeparator << Literals::space;
 
         i->second->serialize(std::move(indentation), os);
         ++i;
         if (i != values.end())
-            os << Literals::space << Literals::value_separator
+            os << Literals::space << Literals::valueSeparator
                     << Literals::newline;
         else
             os << Literals::newline;
     }
     indentation.pop_back();
     indentation.pop_back();
-    os << indentation << Literals::end_object;
+    os << indentation << Literals::endObject;
 }
 
 inline void Object::serialize(OstreamT& os) const {
-    os << Literals::begin_object;
+    os << Literals::beginObject;
     for (auto i = values.begin(); i != values.end();) {
-        os << Literals::quotation_mark << i->first << Literals::quotation_mark
-                << Literals::name_separator;
+        os << Literals::quotationMark << i->first << Literals::quotationMark
+                << Literals::nameSeparator;
         i->second->serialize(os);
         ++i;
         if (i != values.end())
-            os << Literals::value_separator;
+            os << Literals::valueSeparator;
     }
-    os << Literals::end_object;
+    os << Literals::endObject;
 }
 
 inline bool Object::compare(const Object& o) const noexcept {
@@ -258,8 +258,8 @@ inline const ObjectEntry::StringType& ObjectEntry::getValue() const {
 }
 
 inline void ObjectEntry::serialize(OstreamT& os) const {
-    os << Literals::quotation_mark << it->first << Literals::quotation_mark
-            << Literals::name_separator;
+    os << Literals::quotationMark << it->first << Literals::quotationMark
+            << Literals::nameSeparator;
     it->second->serialize(os);
 }
 
@@ -316,26 +316,26 @@ inline void Array::emplace(StringType&& name, IObjectPtr&& obj) {
 }
 
 inline void Array::serialize(StringType&& indentation, OstreamT& os) const {
-    os << Literals::begin_array << Literals::space;
+    os << Literals::beginArray << Literals::space;
     for (auto i = values.begin(); i != values.end();) {
         (*i)->serialize(std::move(indentation), os);
         ++i;
         if (i != values.end())
-            os << Literals::space << Literals::value_separator
+            os << Literals::space << Literals::valueSeparator
                     << Literals::space;
     }
-    os << Literals::space << Literals::end_array;
+    os << Literals::space << Literals::endArray;
 }
 
 inline void Array::serialize(OstreamT& os) const {
-    os << Literals::begin_array;
+    os << Literals::beginArray;
     for (auto i = values.begin(); i != values.end();) {
         (*i)->serialize(os);
         ++i;
         if (i != values.end())
-            os << Literals::value_separator;
+            os << Literals::valueSeparator;
     }
-    os << Literals::end_array;
+    os << Literals::endArray;
 }
 
 inline bool Array::compare(const Array& a) const noexcept {
@@ -415,7 +415,7 @@ inline bool Bool::compare(const Bool& b) const noexcept {
 }
 
 inline True::True() :
-    Base(Literals::value_true()) {
+    Base(Literals::ValueTrue()) {
 }
 
 inline True::True(const StringType& s) :
@@ -427,11 +427,11 @@ inline True::True(StringType&& s) :
 }
 
 inline const char* True::Literal() {
-    return Literals::value_true();
+    return Literals::ValueTrue();
 }
 
 inline False::False() :
-    Base(Literals::value_false()) {
+    Base(Literals::ValueFalse()) {
 }
 inline False::False(const StringType& s) :
     Base(s) {
@@ -440,7 +440,7 @@ inline False::False(StringType&& s) :
     Base(std::move(s)) {
 }
 inline const char* False::Literal() {
-    return Literals::value_false();
+    return Literals::ValueFalse();
 }
 
 inline String::String() :
@@ -459,8 +459,8 @@ inline void String::serialize(StringType&&, OstreamT& os) const {
 }
 
 inline void String::serialize(OstreamT& os) const {
-    os << Literals::quotation_mark << this->getValue()
-            << Literals::quotation_mark;
+    os << Literals::quotationMark << this->getValue()
+            << Literals::quotationMark;
 }
 
 inline bool String::compare(const String& s) const noexcept {
@@ -491,7 +491,7 @@ inline bool Number::compare(const Number& n) const noexcept {
 }
 
 inline Null::Null() :
-    Base(StringType(Literals::value_null())) {
+    Base(StringType(Literals::ValueNull())) {
 }
 
 inline Null::Null(const StringType& s) :
@@ -507,7 +507,7 @@ inline nullptr_t Null::getNativeValue() const noexcept {
 }
 
 inline const char* Null::Literal() {
-    return Literals::value_null();
+    return Literals::ValueNull();
 }
 
 inline bool Null::compare(const Null&) const noexcept {

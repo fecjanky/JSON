@@ -28,40 +28,50 @@ namespace JSON {
 struct Literals {
     static constexpr auto newline = '\n';
     static constexpr auto space = ' ';
-    static constexpr auto begin_array = '[';
-    static constexpr auto begin_object = '{';
-    static constexpr auto end_array = ']';
-    static constexpr auto end_object = '}';
-    static constexpr auto name_separator = ':';
-    static constexpr auto value_separator = ',';
-    static constexpr auto string_escape = '\\';
-    static constexpr auto string_unicode_escape = 'u';
-    static constexpr auto quotation_mark = '"';
+    static constexpr auto beginArray = '[';
+    static constexpr auto beginObject = '{';
+    static constexpr auto endArray = ']';
+    static constexpr auto endObject = '}';
+    static constexpr auto nameSeparator = ':';
+    static constexpr auto valueSeparator = ',';
+    static constexpr auto stringEscape = '\\';
+    static constexpr auto stringUnicodeEscape = 'u';
+    static constexpr auto quotationMark = '"';
     static constexpr auto zero = '0';
     static constexpr auto minus = '-';
     static constexpr auto plus = '+';
-    static constexpr auto decimal_point = '.';
-    static constexpr auto exponent_upper = 'e';
-    static constexpr auto exponent_lower = 'E';
-    static constexpr std::array<char, 4> whitespace() {
+    static constexpr auto decimalPoint = '.';
+    static constexpr auto exponentUpper = 'e';
+    static constexpr auto exponentLower = 'E';
+    static constexpr std::array<char, 4> Whitespace() {
         return {' ', '\t', '\n', '\r'};
     }
-    static constexpr const char* whitespace_string() {
+    static constexpr const char* WhitespaceString() {
         return u8" \t\n\r";
     }
-    static constexpr std::array<char, 8> string_escapes() {
+    static constexpr std::array<char, 8> StringEscapes() {
         return {'"', '\\', '/', 'b', 'f', 'n', 'r', 't'};
     }
-    static constexpr const char* begin_number() {
+    static char EscapeToNative(char c) noexcept {
+        switch (c) {
+        case 'b': return '\b';
+        case 'f': return '\f';
+        case 'n': return '\n';
+        case 'r': return '\r';
+        case 't': return '\t';
+        default: return c;
+        }
+    }
+    static constexpr const char* BeginNumber() {
         return u8"-0123456789";
     }
-    static constexpr const char* value_false() {
+    static constexpr const char* ValueFalse() {
         return u8"false";
     }
-    static constexpr const char* value_true() {
+    static constexpr const char* ValueTrue() {
         return u8"true";
     }
-    static constexpr const char* value_null() {
+    static constexpr const char* ValueNull() {
         return u8"null";
     }
 };

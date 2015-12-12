@@ -68,7 +68,7 @@ struct IObject {
 
      // Human readable
     virtual void serialize(StringType&& indentation, OstreamT&) const = 0;
-     // no whitespace (compact,transmission syntax)
+     // no Whitespace (compact,transmission syntax)
     virtual void serialize(OstreamT&) const = 0;
 
     virtual bool compare(const Object&) const noexcept {
