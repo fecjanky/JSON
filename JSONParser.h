@@ -28,7 +28,7 @@
 #include <vector>
 #include <stack>
 #include <exception>
-#include <locale>  // is_digit
+#include <locale>  // isdigit
 #include <functional>  // function
 
 #include "JSONFwd.h"

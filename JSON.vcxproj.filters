@@ -47,5 +47,8 @@
     <ClInclude Include="JSONIteratorFwd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="JSONUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -130,6 +130,7 @@
     <ClInclude Include="JSONObjectsFwd.h" />
     <ClInclude Include="JSONParser.h" />
     <ClInclude Include="JSONSchema.h" />
+    <ClInclude Include="JSONUtils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

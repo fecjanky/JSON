@@ -26,52 +26,12 @@
 
 #include "JSONFwd.h"
 #include "JSON.h"
+#include "JSONUtils.h"
 
 namespace JSON {
 namespace impl {
 
-template<typename Cloneable, typename D = std::default_delete<Cloneable>>
-class CloneableUniquePtr: public std::unique_ptr<Cloneable, D> {
- public:
-    using Base = std::unique_ptr<Cloneable, D>;
-    using Base::Base;
-
-    CloneableUniquePtr(const CloneableUniquePtr& other) :
-            Base(nullptr) {
-        if (other)
-            this->Base::operator=(other->clone());
-    }
-
-    explicit CloneableUniquePtr(Base&& other) :
-            Base(std::move(other)) {
-    }
-
-    CloneableUniquePtr& operator=(const CloneableUniquePtr& other) {
-        if (other)
-            this->Base::operator=(other->clone());
-        else
-            this->reset();
-        return *this;
-    }
-
-    CloneableUniquePtr& operator=(Base&& other) {
-        this->Base::operator=(std::move(other));
-        return *this;
-    }
-
-    bool operator==(const CloneableUniquePtr& rhs) const {
-        if (this->get() == rhs.get())
-            return true;
-        else if ((!*this && rhs) || (*this && !rhs))
-            return false;
-        else
-            return **this == *rhs;
-    }
-
-    bool operator!=(const CloneableUniquePtr& rhs) const {
-        return !(*this == rhs);
-    }
-};
+using JSON::Utils::CloneableUniquePtr;
 
 struct ObjectIteratorState;
 struct ArrayIteratorState;
