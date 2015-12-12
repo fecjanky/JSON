@@ -33,7 +33,7 @@ struct TypeTester;
 
 template<typename Cloneable, typename D = std::default_delete<Cloneable>>
 class CloneableUniquePtr : public std::unique_ptr<Cloneable, D> {
-private:
+ private:
     template<typename T>
     struct PointerCheck {
         static constexpr bool value = std::is_polymorphic<Cloneable>{} ?
@@ -69,15 +69,16 @@ private:
             !std::is_reference<D>::value && std::is_same<DT, D>::value;
     };
 
-    template<typename T>
+    template<typename DT>
     struct DURefCheck {
         static constexpr bool value =
             (std::is_reference<D>::value &&
                 std::is_same<
-                std::remove_reference_t<T>,
+                std::remove_reference_t<DT>,
                 std::remove_reference_t<D>
                 >::value) ||
-            (!std::is_reference<D>::value && std::is_same<DT, D>::value);
+            (!std::is_reference<D>::value && 
+              std::is_same<std::decay_t<DT>, D>::value);
     };
 
     template<typename T>
@@ -96,7 +97,7 @@ private:
     };
     static_assert(HasClone<Cloneable>::value, "Type is not Cloneable");
 
-public:
+ public:
     using Base = std::unique_ptr<Cloneable, D>;
 
     explicit CloneableUniquePtr(Cloneable* ptr = nullptr) : Base{ ptr } {}
