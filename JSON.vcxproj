@@ -129,6 +129,7 @@
     <ClInclude Include="JSONObjects.h" />
     <ClInclude Include="JSONObjectsFwd.h" />
     <ClInclude Include="JSONParser.h" />
+    <ClInclude Include="JSONParserFwd.h" />
     <ClInclude Include="JSONSchema.h" />
     <ClInclude Include="JSONUtils.h" />
   </ItemGroup>

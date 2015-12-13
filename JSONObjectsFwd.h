@@ -183,7 +183,7 @@ class BuiltIn: public IndividualObject {
     BuiltIn();
     explicit BuiltIn(const StringType& s);
     explicit BuiltIn(StringType&& s);
-    StringType value;
+    mutable StringType value;
 };
 
 class Bool: public impl::CompareImpl<BuiltIn, Bool> {
@@ -251,6 +251,9 @@ class Number: public impl::IObjectIFImpl<BuiltIn, Number> {
     explicit Number(StringType&& s);
     double getNativeValue() const noexcept;
     bool compare(const Number&) const noexcept override;
+    const StringType& getValue() const override;
+    void serialize(StringType&&, OstreamT& os) const override;
+    void serialize(OstreamT& os) const override;
 
  private:
     double nativeValue;

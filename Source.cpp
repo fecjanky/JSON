@@ -1,5 +1,6 @@
 ﻿#include <iostream>
 #include <sstream>
+#include <chrono>
 
 #include "JSON.h"
 #include "JSONParser.h"
@@ -12,7 +13,7 @@ try {
     {
         "menu": {
             "id": "file",
-            "value": 3,
+            "value": 3.01e-12,
             "array" : [1,"test",true ],
             "popup": {
                 "menuitem": "CreateNewDoc()",
@@ -32,6 +33,19 @@ try {
              )--" };
              */
             {
+                //std::vector<JSON::IObjectPtr> objstorage;
+                //auto start = std::chrono::steady_clock::now();
+                //int loops = 0;
+                //while (std::chrono::steady_clock::now() - start < std::chrono::seconds{ 60 }) {
+                //    auto objs = ::JSON::parse(json_text3.begin(), json_text3.end());
+                //    objstorage.emplace_back(std::move(objs[0]));
+                //    loops++;
+                //}
+                //auto end = std::chrono::steady_clock::now();
+                //std::cout << loops << " " 
+                //    << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() 
+                //    << " ms" << std::endl;
+
                 auto objs = ::JSON::parse(json_text3.begin(), json_text3.end());
                 auto objs2 = ::JSON::parse(json_text3.begin(), json_text3.end());
                 auto o1 = JSON::Create<JSON::String>("Hello");
@@ -56,7 +70,7 @@ try {
                     std::cout << x << std::endl;
                 }
 
-                std::stringstream ss;
+                //std::stringstream ss;
 
                 /*std::cout << obj << std::endl;
                  obj.serialize(std::cout);

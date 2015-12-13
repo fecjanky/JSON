@@ -30,6 +30,8 @@
 #include <exception>
 #include <locale>  // isdigit
 #include <functional>  // function
+#include <limits>
+#include <cmath> // pow
 
 #include "JSONFwd.h"
 #include "JSON.h"
@@ -138,18 +140,6 @@ struct Return {
                 "State member object is not type of Object pointer");
         s.object = JSON::Create<JSONT>(std::move(s.token));
         return current_parser.nextParser(p);
-    }
-};
-
-template<typename JSONT>
-struct CallBack {
-    template<typename ParserT, typename StateT>
-    ISubParser& operator()(ParserT& current_parser, StateT& s, IParser&p) {
-        static_assert(std::is_same<JSON::IObjectPtr,
-                decltype(s.object)>::value,
-                "State member object is not type of Object pointer");
-        s.object = JSON::Create<JSONT>(std::move(s.token));
-        return current_parser.nextParser(p)(p);
     }
 };
 
@@ -333,6 +323,74 @@ inline IObjectPtr NumberParser::State::getObject() {
     return std::move(object);
 }
 
+inline char NumberParser::ExtractDigit(char d) noexcept {
+    return d - Literals::zero;
+}
+
+template<typename Int>
+inline void NumberParser::StoreInteger::
+overflowCheck(Int d) {
+    constexpr auto maxTreshold = 
+        std::numeric_limits<Int>::max() / 10;
+    constexpr auto minTreshold =
+        std::numeric_limits<Int>::min() / 10;
+    if (d > maxTreshold || d < minTreshold)
+        throw IntegerOverflow{};
+}
+
+inline ISubParser& NumberParser::StoreInteger::
+operator()(NumberParser& cp, NumberParser::State& s, IParser& p) {
+    overflowCheck(s.integerPart);
+    auto c = p.getCurrentChar();
+    s.token.push_back(c);
+    s.integerPart = 10 * s.integerPart + ExtractDigit(c);
+    return cp;
+}
+
+inline ISubParser& NumberParser::StoreSign::
+operator()(NumberParser& cp, NumberParser::State& s, IParser& p) {
+    auto c = p.getCurrentChar();
+    if (std::char_traits<char>::eq(c, Literals::minus))
+        s.sign = true;
+    s.token.push_back(p.getCurrentChar());
+    return cp;
+}
+
+inline ISubParser& NumberParser::StoreFraction::
+operator()(NumberParser& cp, NumberParser::State& s, IParser& p) {
+    auto c = p.getCurrentChar();
+    s.token.push_back(c);
+    s.fractionPart += ExtractDigit(c)*pow(10.0, s.fractionPos--);
+    return cp;
+}
+
+inline ISubParser& NumberParser::StoreExponent::
+operator()(NumberParser& cp, NumberParser::State& s, IParser& p) {
+    StoreInteger::overflowCheck(s.exponentPart);
+    auto c = p.getCurrentChar();
+    s.token.push_back(c);
+    s.exponentPart = 10 * s.exponentPart + ExtractDigit(c);
+    return cp;
+}
+
+inline ISubParser& NumberParser::StoreExponentSign::
+operator()(NumberParser& cp, NumberParser::State& s, IParser& p) {
+    auto c = p.getCurrentChar();
+    s.token.push_back(c);
+    if(std::char_traits<char>::eq(c,Literals::minus))
+        s.expSigned = true;
+    return cp;
+}
+
+ISubParser& NumberParser::CallBack::operator()(NumberParser& cp, NumberParser::State& s, IParser&p) {
+    auto exp = !s.expSigned ? s.exponentPart : -1 * s.exponentPart;
+    auto base = !s.sign ? (s.integerPart + s.fractionPart) : -1.0*(s.integerPart + s.fractionPart);
+    auto num = base*pow(10.0, exp);
+    s.object = JSON::Create<JSON::Number>(num);
+    return cp.nextParser(p)(p);
+}
+
+
 inline const char* NumberParser::getFirstSymbolSet() {
     return Literals::BeginNumber();
 }
@@ -346,17 +404,18 @@ inline ISubParser& NumberParser::start(ISubParserState& state, IParser& p) {
     return StateTransition(*this, state, p,
             std::make_tuple(IsLiteral<L::zero> { }, Store { },
                     &NumberParser::startingZero),
-            std::make_tuple(IsDigit { }, Store { }, &NumberParser::integerPart),
-            std::make_tuple(IsLiteral<L::minus> { }, Store { },
+            std::make_tuple(IsDigit { }, StoreInteger { }, 
+                &NumberParser::integerPart),
+            std::make_tuple(IsLiteral<L::minus> { }, StoreSign{ },
                     &NumberParser::minus));
 }
 
 inline ISubParser& NumberParser::minus(ISubParserState& state, IParser& p) {
     using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<L::zero> { }, Store { },
+            std::make_tuple(IsLiteral<L::zero> { }, Store{ },
                     &NumberParser::startingZero),
-            std::make_tuple(IsDigit { }, Store { },
+            std::make_tuple(IsDigit { }, StoreInteger{ },
                     &NumberParser::integerPart));
 }
 
@@ -364,27 +423,28 @@ inline ISubParser& NumberParser::startingZero(ISubParserState& state,
         IParser& p) {
     using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<L::decimalPoint> { }, Store { },
+            std::make_tuple(IsLiteral<L::decimalPoint> { }, Store{ },
                     &NumberParser::fractionPartStart),
-            std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
+            std::make_tuple(Others { }, CallBack { }, nullptr));
 }
 
 inline ISubParser& NumberParser::integerPart(ISubParserState& state,
         IParser& p) {
     using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit { }, Store { }, &NumberParser::integerPart),
+            std::make_tuple(IsDigit { }, StoreInteger { },
+                &NumberParser::integerPart),
             std::make_tuple(IsLiteral<L::decimalPoint> { }, Store { },
                     &NumberParser::fractionPartStart),
             std::make_tuple(IsLiteral<L::exponentUpper, L::exponentLower> { },
-                    Store { }, &NumberParser::exponentPartStart),
-            std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
+                Store{ }, &NumberParser::exponentPartStart),
+            std::make_tuple(Others { }, CallBack{ }, nullptr));
 }
 
 inline ISubParser& NumberParser::fractionPartStart(ISubParserState& state,
         IParser& p) {
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit { }, Store { },
+            std::make_tuple(IsDigit { }, StoreFraction { },
                     &NumberParser::fractionPart));
 }
 
@@ -392,36 +452,36 @@ inline ISubParser& NumberParser::fractionPart(ISubParserState& state,
         IParser& p) {
     using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit { }, Store { },
+            std::make_tuple(IsDigit { }, StoreFraction { },
                     &NumberParser::fractionPart),
             std::make_tuple(IsLiteral<L::exponentUpper, L::exponentLower> { },
-                    Store { }, &NumberParser::exponentPartStart),
-            std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
+                Store{ }, &NumberParser::exponentPartStart),
+            std::make_tuple(Others { }, CallBack { }, nullptr));
 }
 
 inline ISubParser& NumberParser::exponentPartStart(ISubParserState& state,
         IParser& p) {
     using L = Literals;
     return StateTransition(*this, state, p,
-            std::make_tuple(IsLiteral<L::minus, L::plus> { }, Store { },
-                    &NumberParser::exponentPartStartSigned),
-            std::make_tuple(IsDigit { }, Store { },
+            std::make_tuple(IsLiteral<L::minus, L::plus> { },
+                StoreExponentSign{ }, &NumberParser::exponentPartStartSigned),
+            std::make_tuple(IsDigit { }, StoreExponent { },
                     &NumberParser::exponentPart));
 }
 
 inline ISubParser& NumberParser::exponentPartStartSigned(ISubParserState& state,
         IParser& p) {
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit { }, Store { },
+            std::make_tuple(IsDigit { }, StoreExponent { },
                     &NumberParser::exponentPart));
 }
 
 inline ISubParser& NumberParser::exponentPart(ISubParserState& state,
         IParser& p) {
     return StateTransition(*this, state, p,
-            std::make_tuple(IsDigit { }, Store { },
+            std::make_tuple(IsDigit { }, StoreExponent { },
                     &NumberParser::exponentPart),
-            std::make_tuple(Others { }, CallBack<MyJSONType> { }, nullptr));
+            std::make_tuple(Others { }, CallBack{ }, nullptr));
 }
 
 inline ObjectParser::State::State(IParser& p) :
@@ -696,3 +756,8 @@ ObjContainer parse(ForwardIterator start, ForwardIterator end) {
 }  // namespace JSON
 
 #endif  // JSONPARSER_H_
+
+
+
+
+

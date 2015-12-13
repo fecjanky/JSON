@@ -150,22 +150,64 @@ class LiteralParser: public ParserTemplate<LiteralParser<JSONLiteral>> {
     ISubParser& check(ISubParserState& state, IParser& p);
 };
 
-class NumberParser: public ParserTemplate<NumberParser> {
- public:
-    struct Exception: impl::Exception {
+class NumberParser : public ParserTemplate<NumberParser> {
+public:
+    struct Exception : impl::Exception {
     };
+    struct IntegerOverflow : public Exception {};
+
     using MyJSONType = JSON::Number;
     using Base = ParserTemplate<NumberParser>;
     using BaseState = Base::State;
     using StatePtr = Base::StatePtr;
 
     struct State: public BaseState {
-        using BaseState::BaseState;
+        State(IParser& p) : BaseState(p),
+            integerPart{}, sign{}, fractionPart{}, 
+            fractionPos{ -1 }, exponentPart{}, expSigned{} {}
 
         IObjectPtr getObject() override;
 
         IObjectPtr object;
         std::string token;
+        int integerPart;
+        bool sign;
+        double fractionPart;
+        int fractionPos;
+        int exponentPart;
+        bool expSigned;
+    };
+
+    static char ExtractDigit(char d) noexcept;
+    struct StoreInteger {
+        template<typename Int>
+        static void overflowCheck(Int s);
+        ISubParser& operator()(
+            NumberParser& cp, NumberParser::State& s, IParser& p);
+    };
+
+    struct StoreFraction {
+        ISubParser& operator()(
+            NumberParser& cp, NumberParser::State& s, IParser& p);
+    };
+
+    struct StoreExponent {
+        ISubParser& operator()(
+            NumberParser& cp, NumberParser::State& s, IParser& p);
+    };
+
+    struct StoreExponentSign {
+        ISubParser& operator()(
+            NumberParser& cp, NumberParser::State& s, IParser& p);
+    };
+
+    struct StoreSign {
+        ISubParser& operator()(
+            NumberParser& cp, NumberParser::State& s, IParser& p);
+    };
+
+    struct CallBack {
+        ISubParser& operator()(NumberParser& cp, NumberParser::State& s, IParser&p);
     };
 
     static const char* getFirstSymbolSet();

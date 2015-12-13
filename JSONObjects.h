@@ -469,9 +469,6 @@ inline bool String::compare(const String& s) const noexcept {
 
 inline Number::Number(double d) :
         nativeValue { d } {
-    std::stringstream ss { };
-    ss << std::scientific << d;
-    this->value = ss.str();
 }
 
 inline Number::Number(const StringType& s) :
@@ -484,6 +481,31 @@ inline Number::Number(StringType&& s) :
 
 inline double Number::getNativeValue() const noexcept {
     return nativeValue;
+}
+
+inline const Number::StringType & Number::getValue() const
+{
+    if (this->value.empty()) {
+        auto i = static_cast<long long>(this->nativeValue);
+        if (this->nativeValue == static_cast<decltype(this->nativeValue)>(i)) {
+            this->value = std::to_string(i);
+        } else {
+            std::stringstream ss{};
+            ss << this->nativeValue;
+            this->value = ss.str();
+        }
+    }
+    return this->value;
+}
+
+inline void Number::serialize(StringType &&, OstreamT & os) const
+{
+    serialize(os);
+}
+
+inline void Number::serialize(OstreamT & os) const
+{
+    os << getValue();
 }
 
 inline bool Number::compare(const Number& n) const noexcept {

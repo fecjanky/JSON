@@ -50,5 +50,8 @@
     <ClInclude Include="JSONUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="JSONParserFwd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
