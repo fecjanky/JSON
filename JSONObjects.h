@@ -39,16 +39,6 @@ namespace JSON {
 
 namespace impl {
 
-template<typename IF>
-Iterator IteratorIFImpl<IF>::begin() const {
-    return Iterator(*this);
-}
-
-template<typename IF>
-Iterator IteratorIFImpl<IF>::end() const {
-    return Iterator { *this, Iterator::end };
-}
-
 template<class IF, class Impl>
 bool CompareImpl<IF,Impl>::operator==(const IObject& o) const noexcept {
     return o.compare(static_cast<const Impl&>(*this));
@@ -190,6 +180,10 @@ inline const Object::Container& Object::getValues() const {
     return values;
 }
 
+inline Object::Container& Object::getValues() {
+    return values;
+}
+
 inline void Object::emplace(IObjectPtr && obj) {
     throw AggregateTypeError();
 }
@@ -247,29 +241,6 @@ inline bool Object::compare(const Object& o) const noexcept {
             return false;
     }
     return true;
-}
-
-inline ObjectEntry::ObjectEntry(It it_, const Object& parent_) :
-        it { it_ }, parent { parent_ } {
-}
-
-inline const ObjectEntry::StringType& ObjectEntry::getValue() const {
-    return it->second->getValue();
-}
-
-inline void ObjectEntry::serialize(OstreamT& os) const {
-    os << Literals::quotationMark << it->first << Literals::quotationMark
-            << Literals::nameSeparator;
-    it->second->serialize(os);
-}
-
-
-inline bool ObjectEntry::compare(const ObjectEntry& e) const noexcept {
-    return e.it->first == it->first && *e.it->second == *it->second;
-}
-
-inline const IObject& ObjectEntry::obj() const noexcept {
-    return *it->second;
 }
 
 inline Array::Array() {
@@ -342,30 +313,6 @@ inline bool Array::compare(const Array& a) const noexcept {
     return a.values.size() == values.size()
             && std::equal(a.values.begin(), a.values.end(), values.begin(),
                 [](const auto& lhs, const auto& rhs) {return *lhs == *rhs;});
-}
-
-inline ArrayEntry::ArrayEntry(It it_, const Array& parent_) :
-        it { it_ }, parent { parent_ } {
-}
-
-inline const ArrayEntry::StringType& ArrayEntry::getValue() const {
-    return (*it)->getValue();
-}
-
-inline void ArrayEntry::serialize(OstreamT& os) const {
-    (*it)->serialize(os);
-}
-
-inline bool ArrayEntry::compare(const ArrayEntry& a) const noexcept {
-    return a.index() == index() && a.obj() == obj();
-}
-
-inline ArrayEntry::index_t ArrayEntry::index() const noexcept {
-    return it - parent.getValues().begin();
-}
-
-inline const IObject& ArrayEntry::obj() const noexcept {
-    return **it;
 }
 
 inline const BuiltIn::StringType& BuiltIn::getValue() const {

@@ -21,39 +21,88 @@
 #ifndef JSONITERATOR_H_
 #define JSONITERATOR_H_
 
+#include <type_traits>
+#include <memory>
+
 #include "JSONFwd.h"
 #include "JSON.h"
 #include "JSONIteratorFwd.h"
 #include "JSONObjectsFwd.h"
+#include "JSONUtils.h"
 
 namespace JSON {
 namespace impl {
 
-struct ObjectIteratorState: public impl::IteratorState, public ObjectEntry {
-    using It = Object::Container::const_iterator;
-    using UPtr = std::unique_ptr<impl::IteratorState>;
+template<class T>
+struct ObjectIteratorState: public impl::IteratorState<T> {
+    static_assert(std::is_same<std::decay_t<T>, IObject>::value,
+        "JSON ObjectIteratorState invalid type");
+    
+    using value_type = T;
+    using pointer = value_type*;
+    using reference = value_type&;
+    using const_pointer = std::add_const_t<pointer>;
+    using const_reference = std::add_const_t<reference>;
 
-    ObjectIteratorState(It it_, const Object&);
+    using iterator = Utils::If_t<
+        std::is_const<T>::value,
+        Object::Container::const_iterator,
+        Object::Container::iterator>;
+    
+    using UPtr = std::unique_ptr<impl::IteratorState<T>>;
+
+    explicit ObjectIteratorState(iterator,const Object&);
     ObjectIteratorState(const ObjectIteratorState&) = default;
     ObjectIteratorState(ObjectIteratorState&&) = default;
-    IObject& nextObj();
-    static IObject& getObj(It i);
+    ~ObjectIteratorState() = default;
+
+    reference getObj() noexcept override;
+    void next()  noexcept override;
+    operator bool()const noexcept override;
+
     UPtr clone() const override;
     bool operator==(const IteratorState& i) const override;
-    bool compare(const ObjectIteratorState& o) const override;
+    bool compare(const ObjectIteratorState<IObject>& o) const override;
+    bool compare(const ObjectIteratorState<const IObject>& o) const override;
+       
+    const Object& root;
+    iterator it;
 };
 
-struct ArrayIteratorState: public impl::IteratorState, public ArrayEntry {
-    using It = Array::Container::const_iterator;
-    using UPtr = std::unique_ptr<impl::IteratorState>;
+template<class T>
+struct ArrayIteratorState: public impl::IteratorState<T> {
+    static_assert(std::is_same<std::decay_t<T>, IObject>::value,
+        "JSON ArrayIteratorState invalid type");
 
-    ArrayIteratorState(It it, const Array&);
+    using value_type = T;
+    using pointer = value_type*;
+    using reference = value_type&;
+    using const_pointer = std::add_const_t<pointer>;
+    using const_reference = std::add_const_t<reference>;
+
+    using iterator = Utils::If_t<
+        std::is_const<T>::value,
+        Array::Container::const_iterator,
+        Array::Container::iterator>;
+
+    using UPtr = std::unique_ptr<impl::IteratorState<T>>;
+
+    explicit ArrayIteratorState(iterator it, const Array&);
     ArrayIteratorState(const ArrayIteratorState&) = default;
-    IObject& nextObj();
-    static IObject& getObj(It i);
+    ArrayIteratorState(ArrayIteratorState&&) = default;
+    ~ArrayIteratorState() = default;
+
+    reference getObj() noexcept override;
+    void next() noexcept override;
+    operator bool()const noexcept override;
+
     UPtr clone() const override;
     bool operator==(const IteratorState& i) const override;
-    bool compare(const ArrayIteratorState& o) const override;
+    bool compare(const ArrayIteratorState<IObject>& o) const override;
+    bool compare(const ArrayIteratorState<const IObject>& o) const override;
+    
+    const Array& root;
+    iterator it;
 };
 
 struct IsAggregateObject: public IObject::IVisitor {
@@ -77,183 +126,233 @@ struct IsAggregateObject: public IObject::IVisitor {
 
 }  // namespace impl
 
-inline Iterator::Iterator() :
+template<typename T>
+inline Iterator<T>::Iterator() :
         root { } {
 }
 
-inline Iterator::Iterator(const IObject& o, end_t) :
+template<typename T>
+inline Iterator<T>::Iterator(reference o, end_t) :
         root { &o } {
 }
 
-inline Iterator::Iterator(const IObject& o) :
+template<typename T>
+inline Iterator<T>::Iterator(reference o) :
         root { &o } {
     objStack.emplace(&o, nullptr);
 }
 
-inline const IObject& Iterator::operator*() {
-    return *objStack.top().first;
+template<typename T>
+inline auto Iterator<T>::operator*() -> reference {
+    return objStack.top().second ? 
+        objStack.top().second->getObj() : *objStack.top().first;
 }
 
-inline Iterator& Iterator::operator++() {
+template<typename T>
+inline Iterator<T>& Iterator<T>::operator++() {
     objStack.top().first->accept(*this);
     return *this;
 }
 
-inline Iterator Iterator::operator++(int) {
+template<typename T>
+inline Iterator<T> Iterator<T>::operator++(int) {
     Iterator temp = *this;
     ++*this;
     return temp;
 }
 
-inline const IObject* Iterator::operator->() {
-    return objStack.top().first;
+template<typename T>
+inline auto Iterator<T>::operator->() -> pointer {
+    return objStack.top().second ?
+        &objStack.top().second->getObj() : objStack.top().first;
+
 }
 
-inline bool Iterator::operator==(const Iterator& rhs) const {
+template <typename T>
+inline bool Iterator<T>::operator==(const Iterator& rhs) const {
     return root == rhs.root && objStack == rhs.objStack;
 }
 
-inline bool Iterator::operator!=(const Iterator& rhs) const {
+template <typename T>
+inline bool Iterator<T>::operator!=(const Iterator& rhs) const {
     return !(*this == rhs);
 }
 
+
+template<typename T>
+struct ObjTraits;
+
 template<>
-struct Iterator::ObjTraits<Object> {
-    using State = impl::ObjectIteratorState;
+struct ObjTraits<Object> {
+    using State = impl::ObjectIteratorState<IObject>;
 };
 
 template<>
-struct Iterator::ObjTraits<Array> {
-    using State = impl::ArrayIteratorState;
+struct ObjTraits<const Object> {
+    using State = impl::ObjectIteratorState<const IObject>;
 };
 
-inline void Iterator::visit(const Object& o) {
+template<>
+struct ObjTraits<Array> {
+    using State = impl::ArrayIteratorState<IObject>;
+};
+
+template<>
+struct ObjTraits<const Array> {
+    using State = impl::ArrayIteratorState<const IObject>;
+};
+
+
+template <typename T>
+inline void Iterator<T>::visit(ObjectParam o) {
+    //Utils::TypeTester<T, ObjectParam> ot;
     statefulVisit(o);
 }
 
-inline void Iterator::visit(const ObjectEntry& o) {
-    statefulVisitEntry(o);
-}
-
-inline void Iterator::visit(const Array& a) {
+template <typename T>
+inline void Iterator<T>::visit(ArrayParam a) {
+    //Utils::TypeTester<T, ArrayParam> at;
     statefulVisit(a);
 }
 
-inline void Iterator::visit(const ArrayEntry& o) {
-    statefulVisitEntry(o);
-}
-
-inline void Iterator::visit(const True&) {
+template <typename T>
+inline void Iterator<T>::visit(TrueParam) {
     next_elem();
 }
 
-inline void Iterator::visit(const False&) {
+template <typename T>
+inline void Iterator<T>::visit(FalseParam) {
     next_elem();
 }
 
-inline void Iterator::visit(const Null&) {
+template <typename T>
+inline void Iterator<T>::visit(NullParam) {
     next_elem();
 }
 
-inline void Iterator::visit(const Number&) {
+template <typename T>
+inline void Iterator<T>::visit(NumberParam) {
     next_elem();
 }
 
-inline void Iterator::visit(const String&) {
+template <typename T>
+inline void Iterator<T>::visit(StringParam) {
     next_elem();
 }
 
-inline void Iterator::next_elem() {
+template <typename T>
+inline void Iterator<T>::next_elem() {
     objStack.pop();
     if (!objStack.empty()) {
         objStack.top().first->accept(*this);
     }
 }
 
+// TODO(fecjanky): Fix iteration logic!
+template<typename T>
 template<typename Obj>
-inline void Iterator::statefulVisit(const Obj& o) {
-    using StateT = typename ObjTraits<Obj>::State;
+inline void Iterator<T>::statefulVisit(Obj& o) {
+    using ObjT = Utils::If_t<std::is_const<T>::value, const Obj, Obj>;
+    using StateT = typename ObjTraits<ObjT>::State;
+    
     if (!objStack.top().second && !o.getValues().empty()) {
-        objStack.top().second = StatePtr(new StateT(o.getValues().begin(), o));
-        auto& next_obj = static_cast<StateT&>(*objStack.top().second);
+        auto next_state = std::make_unique<StateT>(o.getValues().begin(),o);
+        auto& next_obj = next_state->getObj();
+        objStack.top().second = std::move(next_state);
         objStack.emplace(&next_obj, nullptr);
     } else {
-        next_elem();
-    }
-}
-
-template<typename Obj>
-inline void Iterator::statefulVisitEntry(const Obj& o) {
-    if (o.it == o.parent.getValues().end()) {
-        objStack.pop();
-    } else {
-        auto& obj = o.obj();
-        ++o.it;
-        if (impl::IsAggregateObject(obj))
-            objStack.emplace(&obj, nullptr);
-        else if (o.it == o.parent.getValues().end()) {
-            objStack.pop();
+        if (objStack.top().second && *objStack.top().second) {
+            auto& obj = objStack.top().second->getObj();
+            objStack.top().second->next();
+            if (impl::IsAggregateObject(objStack.top().second->getObj()))
+                objStack.emplace(&obj, nullptr);                
+        } else {
+            next_elem();
         }
     }
 }
 
 namespace impl {
 
-inline ObjectIteratorState::ObjectIteratorState(It it, const Object& o) :
-        ObjectEntry(it, o) {
+template<class T>
+inline ObjectIteratorState<T>::ObjectIteratorState(iterator it_, const Object& o) : it{ it_ }, root{ o } {
 }
 
-inline IObject& ObjectIteratorState::nextObj() {
-    return *(it++->second);
+template<class T>
+inline auto ObjectIteratorState<T>::getObj() noexcept -> reference {
+    return *it->second;
 }
 
-inline IObject& ObjectIteratorState::getObj(It i) {
-    return *i->second;
+template<class T>
+inline void ObjectIteratorState<T>::next() noexcept {
+    ++it;
 }
 
-inline ObjectIteratorState::UPtr ObjectIteratorState::clone() const {
-    return UPtr(new ObjectIteratorState(*this));
+template<class T>
+inline auto ObjectIteratorState<T>::clone() const -> UPtr {
+    return UPtr(std::make_unique<ObjectIteratorState>(*this));
 }
 
-inline bool ObjectIteratorState::operator==(const IteratorState& i) const {
+template<class T>
+inline bool ObjectIteratorState<T>::operator==(const IteratorState& i) const {
     return i.compare(*this);
 }
 
-inline bool ObjectIteratorState::compare(const ObjectIteratorState& o) const {
+template<class T>
+ObjectIteratorState<T>::operator bool()const noexcept {
+    return root.getValues().end() != it;
+}
+
+template<class T>
+inline bool ObjectIteratorState<T>::compare(const ObjectIteratorState<IObject>& o) const {
     return it == o.it;
 }
 
-inline ArrayIteratorState::ArrayIteratorState(It it, const Array& a) :
-        ArrayEntry(it, a) {
+template<class T>
+inline bool ObjectIteratorState<T>::compare(const ObjectIteratorState<const IObject>& o) const {
+    return it == o.it;
 }
 
-inline IObject& ArrayIteratorState::nextObj() {
-    return **(it++);
+
+template<class T>
+inline ArrayIteratorState<T>::ArrayIteratorState(iterator it_, const Array& a) : it{ it_ }, root{ a } {
 }
 
-inline IObject& ArrayIteratorState::getObj(It i) {
-    return **(i);
+template<class T>
+inline auto ArrayIteratorState<T>::getObj() noexcept -> reference {
+    return **(it);
 }
 
-inline ArrayIteratorState::UPtr ArrayIteratorState::clone() const {
-    return UPtr(new ArrayIteratorState(*this));
+template<class T>
+inline void ArrayIteratorState<T>::next() noexcept {
+    ++it;
 }
 
-inline bool ArrayIteratorState::operator==(const IteratorState& i) const {
+template<class T>
+inline auto ArrayIteratorState<T>::clone() const -> UPtr {
+    return UPtr(std::make_unique<ArrayIteratorState>(*this));
+}
+
+template<class T>
+inline bool ArrayIteratorState<T>::operator==(const IteratorState& i) const {
     return i.compare(*this);
 }
 
-inline bool ArrayIteratorState::compare(const ArrayIteratorState& o) const {
+template<class T>
+ArrayIteratorState<T>::operator bool()const noexcept {
+    return root.getValues().end() != it;
+}
+
+template<class T>
+inline bool ArrayIteratorState<T>::compare(const ArrayIteratorState<IObject>& o) const {
     return it == o.it;
 }
 
-inline bool IteratorState::compare(const ObjectIteratorState&) const {
-    return false;
+template<class T>
+inline bool ArrayIteratorState<T>::compare(const ArrayIteratorState<const IObject>& o) const {
+    return it == o.it;
 }
 
-inline bool IteratorState::compare(const ArrayIteratorState&) const {
-    return false;
-}
 
 }  // namespace impl
 }  // namespace JSON

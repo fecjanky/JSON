@@ -28,8 +28,21 @@
 namespace JSON {
 namespace Utils{
 
-template<typename T>
+template<typename... T>
 struct TypeTester;
+
+template<bool P, typename T1, typename T2>
+struct If {
+    using type = T2;
+};
+
+template<typename T1, typename T2>
+struct If<true, T1, T2> {
+    using type = T1;
+};
+
+template<bool P, typename T1, typename T2>
+using If_t = typename If<P, T1, T2>::type;
 
 template<typename Cloneable, typename D = std::default_delete<Cloneable>>
 class CloneableUniquePtr : public std::unique_ptr<Cloneable, D> {

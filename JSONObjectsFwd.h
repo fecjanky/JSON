@@ -32,13 +32,6 @@
 namespace JSON {
 namespace impl {
 
-template<class IF>
-class IteratorIFImpl: public IF {
- public:
-    Iterator begin() const override;
-    Iterator end() const override;
-};
-
 template<class IF,class Impl>
 class CompareImpl : public IF {
 public:
@@ -62,7 +55,7 @@ class IObjectIFImpl : public VisitorImpl<CompareImpl<IF,Impl>,Impl>{
 
 }  // namespace impl
 
-struct AggregateObject: public impl::IteratorIFImpl<IObject> {
+struct AggregateObject: IObject {
     using StringType = IObject::StringType;
     using IObjectPtr = IObject::IObjectPtr;
      // for arrays
@@ -76,7 +69,7 @@ struct AggregateObject: public impl::IteratorIFImpl<IObject> {
     virtual ~AggregateObject() = default;
 };
 
-struct IndividualObject: public impl::IteratorIFImpl<IObject> {
+struct IndividualObject: public IObject {
     using StringType = IObject::StringType;
     using IObjectPtr = IObject::IObjectPtr;
     IObject& operator[](const StringType& key) override;
@@ -104,6 +97,7 @@ class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
     IObject& operator[](size_t index) override;
     const IObject& operator[](size_t index) const override;
     const Container& getValues() const;
+    Container& getValues();
     void emplace(IObjectPtr && obj) override;
     void emplace(StringType&& name, IObjectPtr && obj) override;
     void serialize(StringType&& indentation, OstreamT& os) const override;
@@ -114,18 +108,6 @@ class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
     Container values;
 };
 
-class ObjectEntry: public impl::IObjectIFImpl<IndividualObject, ObjectEntry> {
- public:
-    using It = Object::Container::const_iterator;
-    explicit ObjectEntry(It, const Object& parent);
-    const StringType& getValue() const override;
-    void serialize(OstreamT& os) const override;
-    bool compare(const ObjectEntry&) const noexcept override;
-    const IObject& obj() const noexcept;
-
-    mutable It it;
-    const Object& parent;
-};
 
 class Array: public impl::IObjectIFImpl<AggregateObject, Array> {
  public:
@@ -153,20 +135,6 @@ class Array: public impl::IObjectIFImpl<AggregateObject, Array> {
 
  private:
     Container values;
-};
-
-class ArrayEntry: public impl::IObjectIFImpl<IndividualObject, ArrayEntry> {
- public:
-    using It = Array::Container::const_iterator;
-    using index_t = It::difference_type;
-    ArrayEntry(It elem, const Array& parent);
-    const StringType& getValue() const override;
-    void serialize(OstreamT& os) const override;
-    bool compare(const ArrayEntry&) const noexcept override;
-    index_t index() const noexcept;
-    const IObject& obj() const noexcept;
-    mutable It it;
-    const Array& parent;
 };
 
 class BuiltIn: public IndividualObject {

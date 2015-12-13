@@ -33,26 +33,60 @@ namespace impl {
 
 using JSON::Utils::CloneableUniquePtr;
 
+template<class T>
 struct ObjectIteratorState;
+template<class T>
 struct ArrayIteratorState;
+
+template<class T>
 struct IteratorState {
     virtual std::unique_ptr<IteratorState> clone() const = 0;
     virtual bool operator==(const IteratorState&) const = 0;
     virtual ~IteratorState() = default;
-    virtual bool compare(const ObjectIteratorState&) const;
-    virtual bool compare(const ArrayIteratorState&) const;
+    virtual bool compare(const ObjectIteratorState<IObject>&) const { return false; }
+    virtual bool compare(const ObjectIteratorState<const IObject>&) const { return false; }
+    virtual bool compare(const ArrayIteratorState<IObject>&) const { return false; }
+    virtual bool compare(const ArrayIteratorState<const IObject>&) const { return false; }
+    virtual T& getObj() noexcept = 0;
+    virtual void next() noexcept = 0;
+    virtual operator bool()const noexcept = 0;
 };
 
 }  // namespace impl
 
+template<typename T>
 class Iterator: public IObject::IVisitor {
  public:
+    static_assert(std::is_same<std::decay_t<T>, IObject>::value, 
+        "JSON iterator invalid type");
+    using value_type = T;
+    using pointer = value_type*;
+    using reference = value_type&;
+    using const_pointer = std::add_const_t<pointer>;
+    using const_reference = std::add_const_t<reference>;
+    
+    template<typename TT>
+    struct visitor_param {
+        using type = Utils::If_t<std::is_const<T>::value, const TT&, TT&>;
+    };
+
+    template<typename TT>
+    using visitor_param_t = typename visitor_param<TT>::type;
+
+    using ObjectParam = visitor_param_t<Object>;
+    using ArrayParam = visitor_param_t<Array>;
+    using TrueParam = visitor_param_t<True>;
+    using FalseParam = visitor_param_t<False>;
+    using NullParam = visitor_param_t<Null>;
+    using NumberParam = visitor_param_t<Number>;
+    using StringParam = visitor_param_t<String>;
+
     enum end_t {
         end
     };
 
-    Iterator(const IObject& o, end_t);
-    explicit Iterator(const IObject& o);
+    Iterator(reference& o, end_t);
+    explicit Iterator(reference& o);
     Iterator();
     Iterator(const Iterator&) = default;
     Iterator(Iterator&&) = default;
@@ -61,40 +95,63 @@ class Iterator: public IObject::IVisitor {
 
     ~Iterator() = default;
 
-    const IObject& operator*();
+    reference operator*();
+    const_reference operator*() const;
+    pointer operator->();
+    const_pointer operator->() const;
+
     Iterator& operator++();
     Iterator operator++(int);
 
-    const IObject* operator->();
     bool operator==(const Iterator& rhs) const;
     bool operator!=(const Iterator& rhs) const;
 
  private:
-    using StatePtr = impl::CloneableUniquePtr<impl::IteratorState>;
-    using State = std::pair<const IObject*, StatePtr>;
+    using StatePtr = impl::CloneableUniquePtr<impl::IteratorState<T>>;
+    using State = std::pair<pointer, StatePtr>;
 
-    void visit(const Object&) override;
-    void visit(const ObjectEntry&) override;
-    void visit(const Array&) override;
-    void visit(const ArrayEntry&) override;
-    void visit(const True&) override;
-    void visit(const False&) override;
-    void visit(const Null&) override;
-    void visit(const Number&) override;
-    void visit(const String&) override;
-
-    template<typename T>
-    struct ObjTraits;
+    void visit(ObjectParam) override;
+    void visit(ArrayParam) override;
+    void visit(TrueParam) override;
+    void visit(FalseParam) override;
+    void visit(NullParam) override;
+    void visit(NumberParam) override;
+    void visit(StringParam) override;
 
     void next_elem();
+    
     template<typename Obj>
-    void statefulVisit(const Obj&);
-    template<typename Obj>
-    void statefulVisitEntry(const Obj&);
+    void statefulVisit(Obj& o);
 
-    const IObject* root;
+    const_pointer root;
     std::stack<State> objStack;
 };
+
+
+
+inline auto IObject::begin() -> iterator {
+    return iterator(*this);
+}
+
+inline auto IObject::end() -> iterator {
+    return iterator(*this, iterator::end);
+}
+
+inline auto IObject::begin() const  -> const_iterator {
+    return const_iterator(*this);
+}
+
+inline auto IObject::end() const  -> const_iterator {
+    return const_iterator(*this, const_iterator::end);
+}
+
+inline auto IObject::cbegin() const -> const_iterator {
+    return begin();
+}
+
+inline auto IObject::cend() const -> const_iterator {
+    return end();
+}
 
 }  // namespace JSON
 #endif  // JSONITERATORFWD_H_

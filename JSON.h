@@ -90,44 +90,42 @@ struct IObject {
     virtual bool compare(const String&) const noexcept {
         return false;
     }
-    virtual bool compare(const ObjectEntry&) const noexcept {
-        return false;
-    }
-    virtual bool compare(const ArrayEntry&) const noexcept {
-        return false;
-    }
     virtual bool operator==(const IObject&) const noexcept = 0;
     bool operator!=(const IObject& o) const noexcept {
         return !(this->operator==(o));
     }
 
     struct IVisitor {
-        virtual void visit(const Object&) {
-        }
-        virtual void visit(const ObjectEntry&) {
-        }
-        virtual void visit(const Array&) {
-        }
-        virtual void visit(const ArrayEntry&) {
-        }
-        virtual void visit(const True&) {
-        }
-        virtual void visit(const False&) {
-        }
-        virtual void visit(const Null&) {
-        }
-        virtual void visit(const Number&) {
-        }
-        virtual void visit(const String&) {
-        }
+        virtual void visit(Object&) {}
+        virtual void visit(Array&) {}
+        virtual void visit(True&) {}
+        virtual void visit(False&) {}
+        virtual void visit(Null&) {}
+        virtual void visit(Number&) {}
+        virtual void visit(String&) {}
+        virtual void visit(const Object&) {}
+        virtual void visit(const Array&) {}
+        virtual void visit(const True&) {}
+        virtual void visit(const False&) {}
+        virtual void visit(const Null&) {}
+        virtual void visit(const Number&) {}
+        virtual void visit(const String&) {}
         virtual ~IVisitor() = default;
     };
 
     virtual void accept(IVisitor&) = 0;
     virtual void accept(IVisitor&) const = 0;
-    using iterator = Iterator;
-    virtual iterator begin() const = 0;
-    virtual iterator end() const = 0;
+
+    using iterator = Iterator<IObject>;
+    using const_iterator = Iterator<const IObject>;
+
+    iterator begin();
+    iterator end();
+    const_iterator begin() const;
+    const_iterator end() const;
+    const_iterator cbegin() const;
+    const_iterator cend() const;
+
 
     virtual ~IObject() = default;
 };
