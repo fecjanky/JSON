@@ -41,9 +41,8 @@
 #include "JSONObjects.h"
 #include "JSONParserFwd.h"
 
-  // TODO(fecjanky): Add Allocator support for parsers
-  // TODO(fecjanky): Add Parsing Startegy (Mutable, Immutable)
-  // TODO(fecjanky): replace literalas in predicate templates
+  // TODO(fecjanky): P2 Add Allocator support for parsers
+  // TODO(fecjanky): P3 Add Parsing Startegy (Mutable, Immutable)
 
 namespace JSON {
 
@@ -172,7 +171,7 @@ class IsLiteral {
 struct IsStringChar {
     bool operator()(char c) {
         using ct = std::char_traits<char>;
-         // FIXME: find correct logic for checking string chars
+         // TODO(fecjanky): P2 find correct logic for checking string chars
         return ct::eq(c, ct::to_char_type(0x20))
                 || ct::eq(c, ct::to_char_type(0x21))
                 || (gt_eq(c, ct::to_char_type(0x23))
@@ -667,7 +666,7 @@ inline ISubParser& StringParser::parseEscapeChar(ISubParserState& s,
 inline ISubParser& StringParser::parseUnicodeEscapeChar(ISubParserState& s,
         IParser& p) {
      // throws exception!
-     // TODO(fecjanky): implement parsing of Unicode escapes
+     // TODO(fecjanky): P3 implement parsing of Unicode escapes
     return StateTransition(*this, s, p);
 }
 

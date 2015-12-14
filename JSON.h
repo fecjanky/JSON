@@ -29,8 +29,9 @@
 
 #include "JSONFwd.h"
 
-  // TODO(fecjanky): Mutable and Immutable objects
-  // TODO(fecjanky): Add IObjectWrapper to be able to runtime modify the underlying object type
+// TODO(fecjanky): P1 Add IObjectWrapper to be able to runtime modify the underlying object type 
+// TODO(fecjanky): P2 Add Allocator support for Objects
+// TODO(fecjanky): P3 Mutable and Immutable objects
 namespace JSON {
 
 struct Exception: public std::exception {

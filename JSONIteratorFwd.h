@@ -48,7 +48,7 @@ struct IteratorState {
     virtual bool compare(const ArrayIteratorState<IObject>&) const { return false; }
     virtual bool compare(const ArrayIteratorState<const IObject>&) const { return false; }
     virtual T& getObj() noexcept = 0;
-    virtual void next() noexcept = 0;
+    virtual bool next() noexcept = 0;
     virtual operator bool()const noexcept = 0;
 };
 

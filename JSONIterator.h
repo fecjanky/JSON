@@ -57,7 +57,7 @@ struct ObjectIteratorState: public impl::IteratorState<T> {
     ~ObjectIteratorState() = default;
 
     reference getObj() noexcept override;
-    void next()  noexcept override;
+    bool next()  noexcept override;
     operator bool()const noexcept override;
 
     UPtr clone() const override;
@@ -93,7 +93,7 @@ struct ArrayIteratorState: public impl::IteratorState<T> {
     ~ArrayIteratorState() = default;
 
     reference getObj() noexcept override;
-    void next() noexcept override;
+    bool next() noexcept override;
     operator bool()const noexcept override;
 
     UPtr clone() const override;
@@ -248,12 +248,10 @@ inline void Iterator<T>::next_elem() {
     }
 }
 
-// TODO(fecjanky): Fix iteration logic!
 template<typename T>
 template<typename Obj>
 inline void Iterator<T>::statefulVisit(Obj& o) {
-    using ObjT = Utils::If_t<std::is_const<T>::value, const Obj, Obj>;
-    using StateT = typename ObjTraits<ObjT>::State;
+    using StateT = typename ObjTraits<Obj>::State;
     
     if (!objStack.top().second && !o.getValues().empty()) {
         auto next_state = std::make_unique<StateT>(o.getValues().begin(),o);
@@ -261,11 +259,10 @@ inline void Iterator<T>::statefulVisit(Obj& o) {
         objStack.top().second = std::move(next_state);
         objStack.emplace(&next_obj, nullptr);
     } else {
-        if (objStack.top().second && *objStack.top().second) {
+        if (objStack.top().second && objStack.top().second->next()) {
             auto& obj = objStack.top().second->getObj();
-            objStack.top().second->next();
-            if (impl::IsAggregateObject(objStack.top().second->getObj()))
-                objStack.emplace(&obj, nullptr);                
+            if (impl::IsAggregateObject(obj))
+                objStack.emplace(&obj, nullptr);
         } else {
             next_elem();
         }
@@ -284,8 +281,8 @@ inline auto ObjectIteratorState<T>::getObj() noexcept -> reference {
 }
 
 template<class T>
-inline void ObjectIteratorState<T>::next() noexcept {
-    ++it;
+inline bool ObjectIteratorState<T>::next() noexcept {
+    return ++it != root.getValues().end();
 }
 
 template<class T>
@@ -324,8 +321,8 @@ inline auto ArrayIteratorState<T>::getObj() noexcept -> reference {
 }
 
 template<class T>
-inline void ArrayIteratorState<T>::next() noexcept {
-    ++it;
+inline bool ArrayIteratorState<T>::next() noexcept {
+    return ++it != root.getValues().end();
 }
 
 template<class T>
