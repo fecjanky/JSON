@@ -33,7 +33,7 @@ try {
              )--" };
              */
             {
-                //std::vector<JSON::IObjectPtr> objstorage;
+                //std::vector<JSON::Ptr> objstorage;
                 //auto start = std::chrono::steady_clock::now();
                 //int loops = 0;
                 //while (std::chrono::steady_clock::now() - start < std::chrono::seconds{ 60 }) {
@@ -70,6 +70,9 @@ try {
                     std::cout << x << std::endl;
                 }
 
+                std::cout << obj << std::endl;
+                obj["menu"]["id"] = a1;
+                std::cout << obj << std::endl;
                 //std::stringstream ss;
 
                 /*std::cout << obj << std::endl;

@@ -31,7 +31,7 @@
 
 namespace JSON {
 
-using ObjContainer = std::vector<JSON::IObjectPtr>;
+using ObjContainer = std::vector<JSON::IObject::Ptr>;
 
 namespace impl {
 
@@ -81,7 +81,7 @@ struct ISubParser {
 
 struct ISubParserState {
     virtual ISubParser& getParser(IParser& p) = 0;
-    virtual IObjectPtr getObject() = 0;
+    virtual IObject::Ptr getObject() = 0;
     virtual ~ISubParserState() = default;
 
     template<typename SubParserImpl>
@@ -119,7 +119,7 @@ class ParserTemplate: public ISubParser {
      public:
         explicit State(IParser& p);
         ISubParser& getParser(IParser& p) override;
-        IObjectPtr getObject() override;
+        IObject::Ptr getObject() override;
 
         StatePtr stateFunc;
     };
@@ -139,7 +139,7 @@ class LiteralParser: public ParserTemplate<LiteralParser<JSONLiteral>> {
     struct State: public BaseState {
         using Base = BaseState;
         explicit State(IParser& p);
-        IObjectPtr getObject() override;
+        IObject::Ptr getObject() override;
         size_t current_pos;
     };
 
@@ -166,9 +166,9 @@ public:
             integerPart{}, sign{}, fractionPart{}, 
             fractionPos{ -1 }, exponentPart{}, expSigned{} {}
 
-        IObjectPtr getObject() override;
+        IObject::Ptr getObject() override;
 
-        IObjectPtr object;
+        IObject::Ptr object;
         std::string token;
         int integerPart;
         bool sign;
@@ -235,9 +235,9 @@ class ObjectParser: public ParserTemplate<ObjectParser> {
 
     struct State: public Base::State {
         explicit State(IParser& p);
-        IObjectPtr getObject() override;
+        IObject::Ptr getObject() override;
 
-        IObjectPtr object;
+        IObject::Ptr object;
         std::string currentKey;
     };
 
@@ -265,9 +265,9 @@ class ArrayParser: public ParserTemplate<ArrayParser> {
 
     struct State: public BaseState {
         explicit State(IParser& p);
-        IObjectPtr getObject() override;
+        IObject::Ptr getObject() override;
 
-        IObjectPtr object;
+        IObject::Ptr object;
     };
 
     static char getFirstSymbolSet();
@@ -291,8 +291,8 @@ class StringParser: public ParserTemplate<StringParser> {
 
     struct State: public BaseState {
         using BaseState::BaseState;
-        IObjectPtr getObject() override;
-        IObjectPtr object;
+        IObject::Ptr getObject() override;
+        IObject::Ptr object;
         std::string token;
     };
 

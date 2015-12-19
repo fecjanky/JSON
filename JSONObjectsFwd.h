@@ -57,11 +57,11 @@ class IObjectIFImpl : public VisitorImpl<CompareImpl<IF,Impl>,Impl>{
 
 struct AggregateObject: IObject {
     using StringType = IObject::StringType;
-    using IObjectPtr = IObject::IObjectPtr;
+    using Ptr = IObject::Ptr;
      // for arrays
-    virtual void emplace(IObjectPtr && obj) = 0;
+    virtual void emplace(Ptr && obj) = 0;
      // for objects
-    virtual void emplace(StringType&& name, IObjectPtr && obj) = 0;
+    virtual void emplace(StringType&& name, Ptr && obj) = 0;
 
      // default impl for getValue
     const StringType& getValue() const override;
@@ -71,10 +71,10 @@ struct AggregateObject: IObject {
 
 struct IndividualObject: public IObject {
     using StringType = IObject::StringType;
-    using IObjectPtr = IObject::IObjectPtr;
-    IObject& operator[](const StringType& key) override;
+    using Ptr = IObject::Ptr;
+    IObjectRef operator[](const StringType& key) override;
     const IObject& operator[](const StringType& key) const override;
-    IObject& operator[](size_t index) override;
+    IObjectRef operator[](size_t index) override;
     const IObject& operator[](size_t index) const override;
     void serialize(StringType&& indentation, OstreamT& os) const override;
 };
@@ -83,23 +83,23 @@ class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
  public:
     using StringType = AggregateObject::StringType;
     using OstreamT = AggregateObject::OstreamT;
-    using IObjectPtr = AggregateObject::IObjectPtr;
+    using Ptr = AggregateObject::Ptr;
     using IObject = AggregateObject::IObject;
     using Key = StringType;
-    using Value = IObjectPtr;
+    using Value = Ptr;
     using Entry = std::pair<const Key, Value>;
     using Container = std::unordered_map<Key, Value>;
     using Literals = JSON::Literals;
 
     Object();
-    IObject& operator[](const StringType& key) override;
+    IObjectRef operator[](const StringType& key) override;
     const IObject& operator[](const StringType& key) const override;
-    IObject& operator[](size_t index) override;
+    IObjectRef operator[](size_t index) override;
     const IObject& operator[](size_t index) const override;
     const Container& getValues() const;
     Container& getValues();
-    void emplace(IObjectPtr && obj) override;
-    void emplace(StringType&& name, IObjectPtr && obj) override;
+    void emplace(Ptr && obj) override;
+    void emplace(StringType&& name, Ptr && obj) override;
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     bool compare(const Object&) const noexcept override;
@@ -113,22 +113,22 @@ class Array: public impl::IObjectIFImpl<AggregateObject, Array> {
  public:
     using StringType = AggregateObject::StringType;
     using OstreamT = AggregateObject::OstreamT;
-    using IObjectPtr = AggregateObject::IObjectPtr;
+    using Ptr = AggregateObject::Ptr;
     using IObject = AggregateObject::IObject;
-    using Value = IObjectPtr;
+    using Value = Ptr;
     using Container = std::vector<Value>;
     using Literals = JSON::Literals;
 
     Array();
-    IObject& operator[](const StringType& key) override;
+    IObjectRef operator[](const StringType& key) override;
     const IObject& operator[](const StringType& key) const override;
-    IObject& operator[](size_t index) override;
+    IObjectRef operator[](size_t index) override;
     const IObject& operator[](size_t index) const override;
     const StringType& getValue() const override;
     Container& getValues();
     const Container& getValues() const;
-    void emplace(IObjectPtr&& obj) override;
-    void emplace(StringType&& name, IObjectPtr&& obj) override;
+    void emplace(Ptr&& obj) override;
+    void emplace(StringType&& name, Ptr&& obj) override;
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     bool compare(const Array&) const noexcept override;
@@ -141,7 +141,7 @@ class BuiltIn: public IndividualObject {
  public:
     using StringType = IObject::StringType;
     using OstreamT = IObject::OstreamT;
-    using IObjectPtr = IObject::IObjectPtr;
+    using Ptr = IObject::Ptr;
     using Literals = JSON::Literals;
 
     const StringType& getValue() const override;
@@ -252,8 +252,8 @@ struct IsJSONType<
 };
 
 template<typename T, typename ... Args>
-std::enable_if_t<IsJSONType<T>::value, IObjectPtr> Create(Args&&... args) {
-    return IObjectPtr(new T(std::forward<Args>(args)...));
+std::enable_if_t<IsJSONType<T>::value, IObject::Ptr> Create(Args&&... args) {
+    return IObject::Ptr(new T(std::forward<Args>(args)...));
 }
 
 }  // namespace JSON

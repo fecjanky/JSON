@@ -129,7 +129,7 @@ inline const AggregateObject::StringType& AggregateObject::getValue() const {
     throw TypeError { };
 }
 
-inline IObject& IndividualObject::operator[](const StringType& key) {
+inline IObjectRef IndividualObject::operator[](const StringType& key) {
     throw TypeError { };
 }
 
@@ -138,7 +138,7 @@ inline const IObject& IndividualObject::operator[](
     throw TypeError { };
 }
 
-inline IObject& IndividualObject::operator[](size_t index) {
+inline IObjectRef IndividualObject::operator[](size_t index) {
     throw TypeError { };
 }
 
@@ -154,11 +154,11 @@ inline void IndividualObject::serialize(StringType&& indentation,
 inline Object::Object() {
 }
 
-inline IObject& Object::operator[](const StringType& key) {
+inline IObjectRef Object::operator[](const StringType& key) {
     auto obj = values.find(key);
     if (obj == values.end())
         throw AttributeMissing();
-    return *obj->second;
+    return obj->second;
 }
 
 inline const IObject& Object::operator[](const StringType& key) const {
@@ -168,7 +168,7 @@ inline const IObject& Object::operator[](const StringType& key) const {
     return *obj->second;
 }
 
-inline IObject& Object::operator[](size_t index) {
+inline IObjectRef Object::operator[](size_t index) {
     throw TypeError();
 }
 
@@ -184,11 +184,11 @@ inline Object::Container& Object::getValues() {
     return values;
 }
 
-inline void Object::emplace(IObjectPtr && obj) {
+inline void Object::emplace(Ptr && obj) {
     throw AggregateTypeError();
 }
 
-inline void Object::emplace(StringType&& name, IObjectPtr && obj) {
+inline void Object::emplace(StringType&& name, Ptr && obj) {
     if (values.find(name) != values.end())
         throw AttributeNotUnique();
     values.emplace(std::move(name), std::move(obj));
@@ -246,7 +246,7 @@ inline bool Object::compare(const Object& o) const noexcept {
 inline Array::Array() {
 }
 
-inline IObject& Array::operator[](const StringType& key) {
+inline IObjectRef Array::operator[](const StringType& key) {
     throw TypeError();
 }
 
@@ -254,10 +254,10 @@ inline const IObject& Array::operator[](const StringType& key) const {
     throw TypeError();
 }
 
-inline IObject& Array::operator[](size_t index) {
+inline IObjectRef Array::operator[](size_t index) {
     if (index >= values.size())
         throw OutOfRange();
-    return *values[index];
+    return values[index];
 }
 
 inline const IObject& Array::operator[](size_t index) const {
@@ -278,11 +278,11 @@ inline const Array::Container& Array::getValues() const {
     return values;
 }
 
-inline void Array::emplace(IObjectPtr&& obj) {
+inline void Array::emplace(Ptr&& obj) {
     values.emplace_back(std::move(obj));
 }
 
-inline void Array::emplace(StringType&& name, IObjectPtr&& obj) {
+inline void Array::emplace(StringType&& name, Ptr&& obj) {
     throw AggregateTypeError();
 }
 

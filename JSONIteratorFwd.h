@@ -153,5 +153,37 @@ inline auto IObject::cend() const -> const_iterator {
     return end();
 }
 
+inline IObject::iterator IObjectRef::begin() {
+    check();
+    obj->begin();
+}
+
+inline IObject::iterator IObjectRef::end() {
+    check();
+    obj->end();
+}
+
+inline IObject::const_iterator IObjectRef::begin() const
+{
+    check();
+    return static_cast<const IObject&>(*obj).begin();
+}
+
+inline IObject::const_iterator IObjectRef::end() const
+{
+    check();
+    return static_cast<const IObject&>(*obj).end();
+}
+
+inline IObject::const_iterator IObjectRef::cbegin() const {
+    check();
+    return obj->cbegin();
+}
+
+inline IObject::const_iterator IObjectRef::cend() const {
+    check();
+    return obj->cend();
+}
+
 }  // namespace JSON
 #endif  // JSONITERATORFWD_H_

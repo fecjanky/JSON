@@ -134,7 +134,7 @@ template<typename JSONT>
 struct Return {
     template<typename ParserT, typename StateT>
     ISubParser& operator()(ParserT& current_parser, StateT& s, IParser&p) {
-        static_assert(std::is_same<JSON::IObjectPtr,
+        static_assert(std::is_same<IObject::Ptr,
                 decltype(s.object)>::value,
                 "State member object is not type of Object pointer");
         s.object = JSON::Create<JSONT>(std::move(s.token));
@@ -266,7 +266,7 @@ ParserTemplate<ParserT>::nextParser(IParser& p) noexcept {
 }
 
 template<typename ParserT>
-inline IObjectPtr ParserTemplate<ParserT>::State::getObject() {
+inline IObject::Ptr ParserTemplate<ParserT>::State::getObject() {
     return nullptr;
 }
 
@@ -287,7 +287,7 @@ inline LiteralParser<JSONLiteral>::State::State(IParser& p) :
 }
 
 template<class JSONLiteral>
-inline IObjectPtr LiteralParser<JSONLiteral>::State::getObject() {
+inline IObject::Ptr LiteralParser<JSONLiteral>::State::getObject() {
     return JSON::Create<JSONLiteral>();
 }
 
@@ -318,7 +318,7 @@ LiteralParser<JSONLiteral>::getInitState() {
     return &LiteralParser::check;
 }
 
-inline IObjectPtr NumberParser::State::getObject() {
+inline IObject::Ptr NumberParser::State::getObject() {
     return std::move(object);
 }
 
@@ -488,7 +488,7 @@ inline ObjectParser::State::State(IParser& p) :
                 JSON::Create<JSON::Object>()) {
 }
 
-inline IObjectPtr ObjectParser::State::getObject() {
+inline IObject::Ptr ObjectParser::State::getObject() {
     return std::move(object);
 }
 
@@ -561,7 +561,7 @@ inline ArrayParser::State::State(IParser& p) :
                 JSON::Create<JSON::Array>() } {
 }
 
-inline IObjectPtr ArrayParser::State::getObject() {
+inline IObject::Ptr ArrayParser::State::getObject() {
     return std::move(object);
 }
 
@@ -620,7 +620,7 @@ inline ISubParser& WSParser::dispatch(ISubParserState& state, IParser& p) {
     }
 }
 
-inline IObjectPtr StringParser::State::getObject() {
+inline IObject::Ptr StringParser::State::getObject() {
     return std::move(object);
 }
 
