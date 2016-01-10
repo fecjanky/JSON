@@ -25,7 +25,9 @@ namespace JSON {
 struct IObject;
 struct AggregateObject;
 class Object;
+class ObjectEntry;
 class Array;
+class ArrayEntry;
 class BuiltIn;
 class Bool;
 class True;

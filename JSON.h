@@ -29,7 +29,7 @@
 
 #include "JSONFwd.h"
 
-// TODO(fecjanky): P1 Add IObjectWrapper to be able to runtime modify the underlying object type 
+// TODO(fecjanky): P1 Revive ObjectEntry and ArrayEntry classes
 // TODO(fecjanky): P2 Add Allocator support for Objects
 // TODO(fecjanky): P3 Mutable and Immutable objects
 namespace JSON {
@@ -113,18 +113,28 @@ struct IObject {
     virtual bool compare(const String&) const noexcept {
         return false;
     }
+    virtual bool compare(const ObjectEntry&) const noexcept {
+        return false;
+    }
+    virtual bool compare(const ArrayEntry&) const noexcept {
+        return false;
+    }
 
     // Visitor Interface
     struct IVisitor {
         virtual void visit(Object&) {}
+        virtual void visit(ObjectEntry&) {}
         virtual void visit(Array&) {}
+        virtual void visit(ArrayEntry&) {}
         virtual void visit(True&) {}
         virtual void visit(False&) {}
         virtual void visit(Null&) {}
         virtual void visit(Number&) {}
         virtual void visit(String&) {}
         virtual void visit(const Object&) {}
+        virtual void visit(const ObjectEntry&) {}
         virtual void visit(const Array&) {}
+        virtual void visit(const ArrayEntry&) {}
         virtual void visit(const True&) {}
         virtual void visit(const False&) {}
         virtual void visit(const Null&) {}

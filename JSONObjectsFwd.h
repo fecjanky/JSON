@@ -28,6 +28,7 @@
 
 #include "JSONFwd.h"
 #include "JSON.h"
+#include "JSONLiterals.h"
 
 namespace JSON {
 namespace impl {
@@ -107,6 +108,14 @@ class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
  private:
     Container values;
 };
+/*
+class ObjectEntry : public impl::IObjectIFImpl<IndividualObject, Object> {
+public:
+   
+protected:
+    ObjectEntry() = default;
+};
+*/
 
 
 class Array: public impl::IObjectIFImpl<AggregateObject, Array> {
