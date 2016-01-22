@@ -155,12 +155,12 @@ inline auto IObject::cend() const -> const_iterator {
 
 inline IObject::iterator IObjectRef::begin() {
     check();
-    obj->begin();
+    return obj->begin();
 }
 
 inline IObject::iterator IObjectRef::end() {
     check();
-    obj->end();
+    return obj->end();
 }
 
 inline IObject::const_iterator IObjectRef::begin() const

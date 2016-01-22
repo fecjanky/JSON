@@ -61,7 +61,7 @@ struct ObjectIteratorState: public impl::IteratorState<T> {
     operator bool()const noexcept override;
 
     UPtr clone() const override;
-    bool operator==(const IteratorState& i) const override;
+    bool operator==(const IteratorState<T>& i) const override;
     bool compare(const ObjectIteratorState<IObject>& o) const override;
     bool compare(const ObjectIteratorState<const IObject>& o) const override;
        
@@ -97,7 +97,7 @@ struct ArrayIteratorState: public impl::IteratorState<T> {
     operator bool()const noexcept override;
 
     UPtr clone() const override;
-    bool operator==(const IteratorState& i) const override;
+    bool operator==(const IteratorState<T>& i) const override;
     bool compare(const ArrayIteratorState<IObject>& o) const override;
     bool compare(const ArrayIteratorState<const IObject>& o) const override;
     
@@ -291,7 +291,7 @@ inline auto ObjectIteratorState<T>::clone() const -> UPtr {
 }
 
 template<class T>
-inline bool ObjectIteratorState<T>::operator==(const IteratorState& i) const {
+inline bool ObjectIteratorState<T>::operator==(const IteratorState<T>& i) const {
     return i.compare(*this);
 }
 
@@ -331,7 +331,7 @@ inline auto ArrayIteratorState<T>::clone() const -> UPtr {
 }
 
 template<class T>
-inline bool ArrayIteratorState<T>::operator==(const IteratorState& i) const {
+inline bool ArrayIteratorState<T>::operator==(const IteratorState<T>& i) const {
     return i.compare(*this);
 }
 

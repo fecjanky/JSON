@@ -349,7 +349,8 @@ operator()(NumberParser& cp, NumberParser::State& s, IParser& p) {
 inline ISubParser& NumberParser::StoreSign::
 operator()(NumberParser& cp, NumberParser::State& s, IParser& p) {
     auto c = p.getCurrentChar();
-    if (std::char_traits<char>::eq(c, Literals::minus))
+    auto minus = Literals::minus;
+    if (std::char_traits<char>::eq(c, minus))
         s.sign = true;
     s.token.push_back(p.getCurrentChar());
     return cp;
@@ -376,7 +377,8 @@ inline ISubParser& NumberParser::StoreExponentSign::
 operator()(NumberParser& cp, NumberParser::State& s, IParser& p) {
     auto c = p.getCurrentChar();
     s.token.push_back(c);
-    if(std::char_traits<char>::eq(c,Literals::minus))
+    auto minus = Literals::minus;
+    if(std::char_traits<char>::eq(c,minus))
         s.expSigned = true;
     return cp;
 }

@@ -125,7 +125,7 @@ class CloneableUniquePtr : public std::unique_ptr<Cloneable, D> {
     }
 
     CloneableUniquePtr(CloneableUniquePtr&& other) noexcept(NEMoveC<D>::value) :
-        Base(std::unique_ptr<T, DT>(other.release(), std::move(other.get_deleter()))) {
+        Base(std::unique_ptr<Cloneable, D>(other.release(), std::move(other.get_deleter()))) {
     }
 
     CloneableUniquePtr& operator=(const CloneableUniquePtr& other) {
