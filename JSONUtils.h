@@ -329,7 +329,7 @@ struct SmartPtrCreatorT {
     using DAllocator = DeleterOf<Allocator<T>>;
 
     template<typename T>
-    using smart_ptr = SmartPtr<T, DAllocator<T>>;
+    using Ptr = SmartPtr<T, DAllocator<T>>;
 
     template<typename T>
     using DelAllocator = DeleterOf<Allocator<T>, DeallocDeletePolicy>;
@@ -344,7 +344,7 @@ struct SmartPtrCreatorT {
             SmartPtrDel<T>, typename DelAllocator<T>::pointer, DelAllocator<T>&&
             >::value &&
             std::is_nothrow_constructible<
-            smart_ptr<T>, typename DAllocator<T>::pointer, DAllocator<T>&&
+            Ptr<T>, typename DAllocator<T>::pointer, DAllocator<T>&&
             >::value &&
             noexcept(std::declval<SmartPtrDel<T>>().release()) &&
             noexcept(std::declval<SmartPtrDel<T>>().get_deleter());
@@ -353,17 +353,17 @@ struct SmartPtrCreatorT {
     template<typename T, typename A, typename... Args>
     static std::enable_if_t<
         std::is_same<std::decay_t<A>, Allocator<T>>::value,
-        smart_ptr<T>
+        Ptr<T>
     > Create(A&& a, Args&&... args) {
         static_assert(SmartPointerIsSafe<T>::value, "SmartPtr is unsafe");
         DelAllocator<T> da{ std::forward<A>(a) };
         SmartPtrDel<T> p(da.allocate(1), std::move(da));
         p.get_deleter().construct(p.get(), std::forward<Args>(args)...);
-        return smart_ptr<T>(p.release(), std::move(p.get_deleter()));
+        return Ptr<T>(p.release(), std::move(p.get_deleter()));
     }
 
     template<typename T, typename... Args>
-    static smart_ptr<T> Create(Args&&... args) {
+    static Ptr<T> Create(Args&&... args) {
         using DelAllocator = DeleterOf<Allocator<T>, DeallocDeletePolicy>;
         return Create<T>(Allocator<T>{}, std::forward<Args>(args)...);
     }
