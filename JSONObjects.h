@@ -39,24 +39,26 @@ namespace JSON {
 
 namespace impl {
     template<typename T>
-    struct CompareHelper : public IObject::IVisitor {
-        CompareHelper() :obj{} {}
+    struct CompareHelper : public IVisitor {
+        CompareHelper(const IObject& o) : obj_p{},obj { o } {}
         void visit(const T& o) override {
-            obj = &o;
+            obj_p = &o;
         }
         const T* get()const noexcept {
-            return obj;
+            if (!obj_p) {
+                obj.accept(*this);
+            }
+            return obj_p;
         }
     private:
-        const T* obj;
+        mutable const T* obj_p;
+        const IObject& obj;
     };
 
 template<class IF, class Impl>
 bool CompareImpl<IF,Impl>::operator==(const IObject& o) const noexcept {
-    CompareHelper<Impl> h;
-    o.accept(h);
-    auto other = h.get();
-    return other ? static_cast<const Impl&>(*this).compare(*other) : false;
+    CompareHelper<Impl> h(o);
+    return h.get() ? static_cast<const Impl&>(*this).compare(*h.get()) : false;
 }
 
 template<class IF, class Impl>
@@ -66,6 +68,16 @@ void VisitorImpl<IF,Impl>::accept(IVisitor& v) {
 
 template<class IF, class Impl>
 void VisitorImpl<IF, Impl>::accept(IVisitor& v) const {
+    v.visit(static_cast<const Impl&>(*this));
+}
+
+template<class IF, class Impl>
+void VisitorImpl<IF, Impl>::accept(const IVisitor& v) {
+    v.visit(static_cast<Impl&>(*this));
+}
+
+template<class IF, class Impl>
+void VisitorImpl<IF, Impl>::accept(const IVisitor& v) const {
     v.visit(static_cast<const Impl&>(*this));
 }
 

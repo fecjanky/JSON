@@ -37,6 +37,7 @@ class Number;
 class Null;
 template<class T>
 class Iterator;
+struct IVisitor;
 }  // namespace JSON
 
 #endif  // JSONFWD_H_

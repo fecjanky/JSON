@@ -105,23 +105,26 @@ struct ArrayIteratorState: public impl::IteratorState<T> {
     iterator it;
 };
 
-struct IsAggregateObject: public IObject::IVisitor {
+struct IsAggregateObject: public IVisitor {
     explicit IsAggregateObject(const IObject& o_) :
             o { o_ }, b { } {
-        o.accept(*this);
     }
     operator bool() const noexcept {
-        return b;
+        if (!b.first) {
+            o.accept(*this);
+            b.first = true;
+        }
+        return b.second;
     }
  private:
-    void visit(const Object&o) override {
-        b = true;
+    void visit(const Object&o) const override {
+        b.second = true;
     }
-    void visit(const Array& a) override {
-        b = true;
+    void visit(const Array& a) const  override {
+        b.second = true;
     }
     const IObject& o;
-    bool b;
+    mutable std::pair<bool,bool> b;
 };
 
 }  // namespace impl

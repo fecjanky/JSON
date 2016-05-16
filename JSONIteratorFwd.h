@@ -55,7 +55,7 @@ struct IteratorState {
 }  // namespace impl
 
 template<typename T>
-class Iterator: public IObject::IVisitor {
+class Iterator: public IVisitor {
  public:
     static_assert(std::is_same<std::decay_t<T>, IObject>::value, 
         "JSON iterator invalid type");

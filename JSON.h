@@ -94,7 +94,6 @@ struct IObject {
     using Ptr = std::unique_ptr<IObject>;
     using StringType = std::string;
     using OstreamT = std::ostream;
-    struct IVisitor;
     using iterator = Iterator<IObject>;
     using const_iterator = Iterator<const IObject>;
 
@@ -122,6 +121,8 @@ struct IObject {
 
     virtual void accept(IVisitor&) = 0;
     virtual void accept(IVisitor&) const = 0;
+    virtual void accept(const IVisitor&) = 0;
+    virtual void accept(const IVisitor&) const = 0;
     
     iterator begin();
     iterator end();
@@ -131,11 +132,10 @@ struct IObject {
     const_iterator cend() const;
     
     virtual ~IObject() = default;
+};
 
-    struct IVisitor : public impl::VisitorIF {
-        using impl::VisitorIF::visit;
-    };
-
+struct IVisitor : public impl::VisitorIF {
+    using impl::VisitorIF::visit;
 };
 
 class IObjectRef {
@@ -191,7 +191,7 @@ public:
         return !(*this == rhs);
     }
 
-    void accept(IObject::IVisitor& v) {
+    void accept(IVisitor& v) {
         check();
         obj->accept(v);        
     }

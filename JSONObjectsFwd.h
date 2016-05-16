@@ -44,9 +44,10 @@ template<class IF, class Impl>
 class VisitorImpl : public IF {
 public:
     using IF::IF;
-    using IVisitor = typename IF::IVisitor;
     void accept(IVisitor& v) override;
     void accept(IVisitor& v) const override;
+    void accept(const IVisitor& v) override;
+    void accept(const IVisitor& v) const override;
 };
 
 template<class IF, class Impl>
