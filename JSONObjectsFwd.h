@@ -103,7 +103,7 @@ class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
     void emplace(StringType&& name, Ptr && obj) override;
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
-    bool compare(const Object&) const noexcept override;
+    bool compare(const Object&) const noexcept;
 
  private:
     Container values;
@@ -140,7 +140,7 @@ class Array: public impl::IObjectIFImpl<AggregateObject, Array> {
     void emplace(StringType&& name, Ptr&& obj) override;
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
-    bool compare(const Array&) const noexcept override;
+    bool compare(const Array&) const noexcept;
 
  private:
     Container values;
@@ -171,7 +171,7 @@ class Bool: public impl::CompareImpl<BuiltIn, Bool> {
 
     bool getNativeValue() const noexcept;
 
-    bool compare(const Bool&) const noexcept override;
+    bool compare(const Bool&) const noexcept;
 
  protected:
     explicit Bool(bool b = false);
@@ -215,7 +215,7 @@ class String: public impl::IObjectIFImpl<BuiltIn, String> {
     explicit String(StringType&& t);
     void serialize(StringType&&, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
-    bool compare(const String&) const noexcept override;
+    bool compare(const String&) const noexcept;
 };
 
 class Number: public impl::IObjectIFImpl<BuiltIn, Number> {
@@ -227,7 +227,7 @@ class Number: public impl::IObjectIFImpl<BuiltIn, Number> {
     explicit Number(const StringType& s);
     explicit Number(StringType&& s);
     double getNativeValue() const noexcept;
-    bool compare(const Number&) const noexcept override;
+    bool compare(const Number&) const noexcept;
     const StringType& getValue() const override;
     void serialize(StringType&&, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
@@ -246,7 +246,7 @@ class Null: public impl::IObjectIFImpl<BuiltIn, Null> {
     explicit Null(StringType&& s);
     std::nullptr_t getNativeValue() const noexcept;
     static const char* Literal();
-    bool compare(const Null&) const noexcept override;
+    bool compare(const Null&) const noexcept;
 };
 
 template<typename T, typename B = void>

@@ -63,6 +63,7 @@ namespace impl {
         ObjectEntry,
         Array,
         ArrayEntry,
+        Bool,
         True,
         False,
         Null,
@@ -130,32 +131,6 @@ struct IObject {
     const_iterator cend() const;
     
     virtual ~IObject() = default;
-
-    // Required for operator==
-    virtual bool compare(const Object&) const noexcept {
-        return false;
-    }
-    virtual bool compare(const Array&) const noexcept {
-        return false;
-    }
-    virtual bool compare(const Bool&) const noexcept {
-        return false;
-    }
-    virtual bool compare(const Null&) const noexcept {
-        return false;
-    }
-    virtual bool compare(const Number&) const noexcept {
-        return false;
-    }
-    virtual bool compare(const String&) const noexcept {
-        return false;
-    }
-    virtual bool compare(const ObjectEntry&) const noexcept {
-        return false;
-    }
-    virtual bool compare(const ArrayEntry&) const noexcept {
-        return false;
-    }
 
     struct IVisitor : public impl::VisitorIF {
         using impl::VisitorIF::visit;

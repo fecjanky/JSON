@@ -38,10 +38,25 @@
 namespace JSON {
 
 namespace impl {
+    template<typename T>
+    struct CompareHelper : public IObject::IVisitor {
+        CompareHelper() :obj{} {}
+        void visit(const T& o) override {
+            obj = &o;
+        }
+        const T* get()const noexcept {
+            return obj;
+        }
+    private:
+        const T* obj;
+    };
 
 template<class IF, class Impl>
 bool CompareImpl<IF,Impl>::operator==(const IObject& o) const noexcept {
-    return o.compare(static_cast<const Impl&>(*this));
+    CompareHelper<Impl> h;
+    o.accept(h);
+    auto other = h.get();
+    return other ? static_cast<const Impl&>(*this).compare(*other) : false;
 }
 
 template<class IF, class Impl>
