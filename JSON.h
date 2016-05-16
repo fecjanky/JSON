@@ -34,6 +34,43 @@
 // TODO(fecjanky): P3 Mutable and Immutable objects
 namespace JSON {
 
+namespace impl {
+    template<class... T>
+    struct VisitorIF_Gen;
+    
+    template<class T>
+    struct VisitorIF_Gen<T> {
+        using TT = std::decay_t<T>;
+        virtual void visit(TT&) {};
+        virtual void visit(const TT&) {};
+        virtual void visit(TT&) const{};
+        virtual void visit(const TT&) const {};
+        virtual ~VisitorIF_Gen() = default;
+    };
+
+    template<class T,class... Ts>
+    struct VisitorIF_Gen<T,Ts...> : public VisitorIF_Gen<Ts...>{
+        using VisitorIF_Gen<Ts...>::visit;
+        using TT = std::decay_t<T>;
+        virtual void visit(TT&) {};
+        virtual void visit(const TT&) {};
+        virtual void visit(TT&) const {};
+        virtual void visit(const TT&) const {};
+        virtual ~VisitorIF_Gen() = default;
+    };
+    using VisitorIF = impl::VisitorIF_Gen<
+        Object,
+        ObjectEntry,
+        Array,
+        ArrayEntry,
+        True,
+        False,
+        Null,
+        Number,
+        String
+    >;
+}  // namespace impl
+
 struct Exception: public std::exception {
 };
 struct AttributeMissing: JSON::Exception {
@@ -120,28 +157,10 @@ struct IObject {
         return false;
     }
 
-    // Visitor Interface
-    struct IVisitor {
-        virtual void visit(Object&) {}
-        virtual void visit(ObjectEntry&) {}
-        virtual void visit(Array&) {}
-        virtual void visit(ArrayEntry&) {}
-        virtual void visit(True&) {}
-        virtual void visit(False&) {}
-        virtual void visit(Null&) {}
-        virtual void visit(Number&) {}
-        virtual void visit(String&) {}
-        virtual void visit(const Object&) {}
-        virtual void visit(const ObjectEntry&) {}
-        virtual void visit(const Array&) {}
-        virtual void visit(const ArrayEntry&) {}
-        virtual void visit(const True&) {}
-        virtual void visit(const False&) {}
-        virtual void visit(const Null&) {}
-        virtual void visit(const Number&) {}
-        virtual void visit(const String&) {}
-        virtual ~IVisitor() = default;
+    struct IVisitor : public impl::VisitorIF {
+        using impl::VisitorIF::visit;
     };
+
 };
 
 class IObjectRef {
