@@ -74,11 +74,20 @@ struct AggregateObject: IObject {
 struct IndividualObject: public IObject {
     using StringType = IObject::StringType;
     using Ptr = IObject::Ptr;
+    using iterator = IObject::iterator;
+
     IObjectRef operator[](const StringType& key) override;
     const IObject& operator[](const StringType& key) const override;
     IObjectRef operator[](size_t index) override;
     const IObject& operator[](size_t index) const override;
     void serialize(StringType&& indentation, OstreamT& os) const override;
+    iterator begin() override;
+    iterator end() override;
+    const_iterator begin() const override;
+    const_iterator end() const override;
+    const_iterator cbegin() const override;
+    const_iterator cend() const override;
+
 };
 
 class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
@@ -92,6 +101,7 @@ class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
     using Entry = std::pair<const Key, Value>;
     using Container = std::unordered_map<Key, Value>;
     using Literals = JSON::Literals;
+    using iterator2 = IObject::iterator;
 
     Object();
     IObjectRef operator[](const StringType& key) override;
@@ -105,7 +115,12 @@ class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     bool compare(const Object&) const noexcept;
-
+    iterator begin() override;
+    iterator end() override;
+    const_iterator begin() const override;
+    const_iterator end() const override;
+    const_iterator cbegin() const override;
+    const_iterator cend() const override;
  private:
     Container values;
 };
@@ -128,6 +143,7 @@ class Array: public impl::IObjectIFImpl<AggregateObject, Array> {
     using Value = Ptr;
     using Container = std::vector<Value>;
     using Literals = JSON::Literals;
+    using iterator2 = IObject::iterator;
 
     Array();
     IObjectRef operator[](const StringType& key) override;
@@ -142,7 +158,12 @@ class Array: public impl::IObjectIFImpl<AggregateObject, Array> {
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     bool compare(const Array&) const noexcept;
-
+    iterator begin() override;
+    iterator end() override;
+    const_iterator begin() const override;
+    const_iterator end() const override;
+    const_iterator cbegin() const override;
+    const_iterator cend() const override;
  private:
     Container values;
 };

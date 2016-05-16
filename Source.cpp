@@ -4,7 +4,6 @@
 
 #include "JSON.h"
 #include "JSONParser.h"
-#include "JSONIterator.h"
 
 int main(int, char**)
 try {
@@ -66,13 +65,22 @@ try {
                 int i = 0;
                 //JSON::IObject::iterator tit{};
                 auto& obj = *objs[0];
-                for (auto& x : obj) {
+                for (auto& x : obj["menu"]) {
                     std::cout << x << std::endl;
                 }
 
                 std::cout << obj << std::endl;
                 obj["menu"]["id"] = a1;
                 std::cout << obj << std::endl;
+                
+                for (auto i2 = obj.begin(); i2 != obj.end(); ++i2) {
+
+                }
+
+                for (auto poi = JSON::MakePreorderIterator(obj.begin()); poi ; ++poi) {
+                    std::cout << *poi << std::endl;
+                }
+
                 //std::stringstream ss;
 
                 /*std::cout << obj << std::endl;

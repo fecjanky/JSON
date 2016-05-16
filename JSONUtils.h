@@ -25,6 +25,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "JSONFwd.h"
+
 namespace JSON {
 namespace Utils{
 
@@ -371,6 +373,91 @@ struct SmartPtrCreatorT {
 };
 
 using SmartPtrCreator = SmartPtrCreatorT<>;
+
+namespace impl {
+    template<class Impl, class... Ts>
+    struct ForTypesMatchVisitorImpl;
+
+    template<class Impl, class... Ts>
+    struct ForTypesNoMatchVisitorImpl;
+
+    template <class Impl, class VisitorIF >
+    struct ForTypesNoMatchVisitorImplHelper;
+
+    template<class Impl, class T>
+    struct ForTypesNoMatchVisitorImpl<Impl, T> : public IVisitor {
+        using TT = std::decay_t<T>;
+        void visit(TT&) override { static_cast<Impl*>(this)->no_match(); };
+        void visit(const TT&) override { static_cast<Impl*>(this)->no_match(); };
+        void visit(TT&) const override { static_cast<const Impl*>(this)->no_match(); };
+        void visit(const TT&) const override { static_cast<const Impl*>(this)->no_match(); };
+    };
+
+    template<class Impl, class T, class... Ts>
+    struct ForTypesNoMatchVisitorImpl<Impl, T, Ts...> : public ForTypesNoMatchVisitorImpl<Impl, Ts...> {
+        using TT = std::decay_t<T>;
+        void visit(TT&) override { static_cast<Impl*>(this)->no_match(); };
+        void visit(const TT&) override { static_cast<Impl*>(this)->no_match(); };
+        void visit(TT&) const override { static_cast<const Impl*>(this)->no_match(); };
+        void visit(const TT&) const override { static_cast<const Impl*>(this)->no_match(); };
+    };
+
+    template<class Impl, class T, class... Ts>
+    struct ForTypesNoMatchVisitorImplHelper<Impl, JSON::impl::VisitorIF_Gen<T, Ts...>> : public
+        ForTypesNoMatchVisitorImpl<Impl, T, Ts...>
+    {
+    };
+
+    template<class Impl, class T>
+    struct ForTypesMatchVisitorImpl<Impl, T> : public ForTypesNoMatchVisitorImplHelper<Impl, IVisitor> {
+        using TT = std::decay_t<T>;
+        void visit(TT&) override { static_cast<Impl*>(this)->match(); };
+        void visit(const TT&) override { static_cast<Impl*>(this)->match(); };
+        void visit(TT&) const override { static_cast<const Impl*>(this)->match(); };
+        void visit(const TT&) const override { static_cast<const Impl*>(this)->match(); };
+    };
+
+    template<class Impl, class T, class... Ts>
+    struct ForTypesMatchVisitorImpl<Impl, T, Ts...> : public ForTypesMatchVisitorImpl<Impl, Ts...> {
+        using TT = std::decay_t<T>;
+        void visit(TT&) override { static_cast<Impl*>(this)->match(); };
+        void visit(const TT&) override { static_cast<Impl*>(this)->match(); };
+        void visit(TT&) const override { static_cast<const Impl*>(this)->match(); };
+        void visit(const TT&) const override { static_cast<const Impl*>(this)->match(); };
+    };
+
+}  //namespace impl
+
+template<typename... Ts>
+struct ForTypes : public impl::ForTypesMatchVisitorImpl<ForTypes<Ts...>,Ts...> {
+
+    explicit ForTypes(const IObject& o_) : o{ o_ }
+    {}
+    void match() const {
+        if(match_function)match_function();
+    }
+    void no_match() const {
+        if(nomatch_function)nomatch_function();
+    }
+
+    template<typename MatchFunction, typename NoMatchFunction>
+    void operator()(MatchFunction&& mf, NoMatchFunction&& nmf) && {
+        match_function = std::forward<MatchFunction>(mf);
+        nomatch_function = std::forward<NoMatchFunction>(nmf);
+        o.accept(*this);
+    }
+
+    template<typename MatchFunction>
+    void operator()(MatchFunction&& mf) && {
+        match_function = std::forward<MatchFunction>(mf);
+        o.accept(*this);
+    }
+
+private:
+    const IObject& o;
+    std::function<void(void)> match_function, nomatch_function;
+};
+
 
 }  // namespace Utils
 }  // namespace JSON

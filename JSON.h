@@ -35,9 +35,7 @@
 namespace JSON {
 
 namespace impl {
-    template<class... T>
-    struct VisitorIF_Gen;
-    
+
     template<class T>
     struct VisitorIF_Gen<T> {
         using TT = std::decay_t<T>;
@@ -58,18 +56,7 @@ namespace impl {
         virtual void visit(const TT&) const {};
         virtual ~VisitorIF_Gen() = default;
     };
-    using VisitorIF = impl::VisitorIF_Gen<
-        Object,
-        ObjectEntry,
-        Array,
-        ArrayEntry,
-        Bool,
-        True,
-        False,
-        Null,
-        Number,
-        String
-    >;
+
 }  // namespace impl
 
 struct Exception: public std::exception {
@@ -94,8 +81,9 @@ struct IObject {
     using Ptr = std::unique_ptr<IObject>;
     using StringType = std::string;
     using OstreamT = std::ostream;
-    using iterator = Iterator<IObject>;
-    using const_iterator = Iterator<const IObject>;
+
+    using iterator = IteratorRef<Iterator<IObject>>;
+    using const_iterator = IteratorRef<Iterator<const IObject>>;
 
     virtual IObjectRef operator[](const StringType& key) = 0;
     virtual const IObject& operator[](const StringType& key) const = 0;
@@ -123,19 +111,16 @@ struct IObject {
     virtual void accept(IVisitor&) const = 0;
     virtual void accept(const IVisitor&) = 0;
     virtual void accept(const IVisitor&) const = 0;
-    
-    iterator begin();
-    iterator end();
-    const_iterator begin() const;
-    const_iterator end() const;
-    const_iterator cbegin() const;
-    const_iterator cend() const;
+
+
+    virtual iterator begin() = 0;
+    virtual iterator end() = 0;
+    virtual const_iterator begin() const  = 0;
+    virtual const_iterator end() const = 0;
+    virtual const_iterator cbegin() const = 0;
+    virtual const_iterator cend() const = 0;
     
     virtual ~IObject() = default;
-};
-
-struct IVisitor : public impl::VisitorIF {
-    using impl::VisitorIF::visit;
 };
 
 class IObjectRef {
@@ -198,10 +183,10 @@ public:
     
     IObject::iterator begin();
     IObject::iterator end();
-    IObject::const_iterator begin() const;
-    IObject::const_iterator end() const;
-    IObject::const_iterator cbegin() const;
-    IObject::const_iterator cend() const;
+    IObject::const_iterator begin()const ;
+    IObject::const_iterator end()const;
+    IObject::const_iterator cbegin()const;
+    IObject::const_iterator cend()const;
 
 private:
     void check() const {

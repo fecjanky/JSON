@@ -28,37 +28,26 @@
 #include <sstream>
 #include <algorithm>  // std::equal
 #include <string>
+#include <vector>
 
 #include "JSONFwd.h"
 #include "JSON.h"
 #include "JSONObjectsFwd.h"
-#include "JSONIteratorFwd.h"
+#include "JSONIterator.h"
 #include "JSONLiterals.h"
+#include "JSONUtils.h"
 
 namespace JSON {
 
 namespace impl {
-    template<typename T>
-    struct CompareHelper : public IVisitor {
-        CompareHelper(const IObject& o) : obj_p{},obj { o } {}
-        void visit(const T& o) override {
-            obj_p = &o;
-        }
-        const T* get()const noexcept {
-            if (!obj_p) {
-                obj.accept(*this);
-            }
-            return obj_p;
-        }
-    private:
-        mutable const T* obj_p;
-        const IObject& obj;
-    };
 
 template<class IF, class Impl>
 bool CompareImpl<IF,Impl>::operator==(const IObject& o) const noexcept {
-    CompareHelper<Impl> h(o);
-    return h.get() ? static_cast<const Impl&>(*this).compare(*h.get()) : false;
+    bool ret = false;
+    Utils::ForTypes<Impl>(o)([&]() {
+        ret = static_cast<const Impl&>(*this).compare(static_cast<const Impl&>(o));
+    });
+    return ret;
 }
 
 template<class IF, class Impl>
@@ -150,6 +139,8 @@ std::string to_string(bool b) {
         return std::string(Literals::ValueFalse());
 }
 
+
+
 }  // namespace impl
 
 inline const AggregateObject::StringType& AggregateObject::getValue() const {
@@ -177,6 +168,7 @@ inline void IndividualObject::serialize(StringType&& indentation,
         OstreamT& os) const {
     static_cast<const IObject*>(this)->serialize(os);
 }
+
 
 inline Object::Object() {
 }

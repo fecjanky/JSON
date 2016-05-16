@@ -37,7 +37,28 @@ class Number;
 class Null;
 template<class T>
 class Iterator;
-struct IVisitor;
+template<class T>
+class IteratorRef;
+
+namespace impl {
+template<class... T>
+struct VisitorIF_Gen;
+}
+
+using IVisitor = impl::VisitorIF_Gen<
+    IObject,
+    Object,
+    ObjectEntry,
+    Array,
+    ArrayEntry,
+    Bool,
+    True,
+    False,
+    Null,
+    Number,
+    String
+>;
+
 }  // namespace JSON
 
 #endif  // JSONFWD_H_

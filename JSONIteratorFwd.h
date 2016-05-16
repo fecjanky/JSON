@@ -30,157 +30,173 @@
 
 namespace JSON {
 namespace impl {
-
-using JSON::Utils::CloneableUniquePtr;
-
-template<class T>
-struct ObjectIteratorState;
-template<class T>
-struct ArrayIteratorState;
-
-template<class T>
-struct IteratorState {
-    virtual std::unique_ptr<IteratorState> clone() const = 0;
-    virtual bool operator==(const IteratorState&) const = 0;
-    virtual ~IteratorState() = default;
-    virtual bool compare(const ObjectIteratorState<IObject>&) const { return false; }
-    virtual bool compare(const ObjectIteratorState<const IObject>&) const { return false; }
-    virtual bool compare(const ArrayIteratorState<IObject>&) const { return false; }
-    virtual bool compare(const ArrayIteratorState<const IObject>&) const { return false; }
-    virtual T& getObj() noexcept = 0;
-    virtual bool next() noexcept = 0;
-    virtual operator bool()const noexcept = 0;
-};
-
 }  // namespace impl
 
 template<typename T>
-class Iterator: public IVisitor {
- public:
-    static_assert(std::is_same<std::decay_t<T>, IObject>::value, 
+class Iterator {
+public:
+    static_assert(std::is_same<std::decay_t<T>, IObject>::value,
         "JSON iterator invalid type");
     using value_type = T;
     using pointer = value_type*;
     using reference = value_type&;
     using const_pointer = std::add_const_t<pointer>;
     using const_reference = std::add_const_t<reference>;
-    
-    template<typename TT>
-    struct visitor_param {
-        using type = Utils::If_t<std::is_const<T>::value, const TT&, TT&>;
-    };
 
-    template<typename TT>
-    using visitor_param_t = typename visitor_param<TT>::type;
+    virtual ~Iterator() = default;
 
-    using ObjectParam = visitor_param_t<Object>;
-    using ArrayParam = visitor_param_t<Array>;
-    using TrueParam = visitor_param_t<True>;
-    using FalseParam = visitor_param_t<False>;
-    using NullParam = visitor_param_t<Null>;
-    using NumberParam = visitor_param_t<Number>;
-    using StringParam = visitor_param_t<String>;
+    virtual Iterator& operator++() = 0;
+    virtual reference operator*() = 0;
+    virtual const_reference operator*() const = 0;
+    virtual pointer operator->() = 0;
+    virtual const_pointer operator->() const = 0;
+    virtual bool operator==(const Iterator& rhs) const noexcept = 0;
+    virtual pointer get() = 0;
+    virtual const_pointer get() const = 0;
+    virtual Iterator* clone() const = 0;
+    virtual bool isValid() const noexcept = 0;
+    operator bool() const noexcept {
+        return isValid();
+    }
 
-    enum end_t {
-        end
-    };
-
-    Iterator(reference& o, end_t);
-    explicit Iterator(reference& o);
-    Iterator();
+    bool operator!=(const Iterator& rhs) const noexcept {
+        return !(*this == rhs);
+    }
+protected:
+    Iterator() = default;
     Iterator(const Iterator&) = default;
-    Iterator(Iterator&&) = default;
     Iterator& operator=(const Iterator&) = default;
-    Iterator& operator=(Iterator&&) = default;
 
-    ~Iterator() = default;
-
-    reference operator*();
-    const_reference operator*() const;
-    pointer operator->();
-    const_pointer operator->() const;
-
-    Iterator& operator++();
-    Iterator operator++(int);
-
-    bool operator==(const Iterator& rhs) const;
-    bool operator!=(const Iterator& rhs) const;
-
- private:
-    using StatePtr = impl::CloneableUniquePtr<impl::IteratorState<T>>;
-    using State = std::pair<pointer, StatePtr>;
-
-    void visit(ObjectParam) override;
-    void visit(ArrayParam) override;
-    void visit(TrueParam) override;
-    void visit(FalseParam) override;
-    void visit(NullParam) override;
-    void visit(NumberParam) override;
-    void visit(StringParam) override;
-
-    void next_elem();
-    
-    template<typename Obj>
-    void statefulVisit(Obj& o);
-
-    const_pointer root;
-    std::stack<State> objStack;
 };
 
+template<typename T>
+class IteratorRef {
+public:
+    using value_type = typename T::value_type;
+    using pointer = typename T::pointer;
+    using reference = typename T::reference;
+    using const_pointer = typename T::const_pointer;
+    using const_reference = typename T::const_reference;
+    struct Exception : public std::exception {
+        const char * what()const noexcept override {
+            return "dereferenced invalid iterator";
+        }
+    };
 
+    IteratorRef() = default;
+    template<typename Impl,typename = std::enable_if_t<std::is_base_of<T,Impl>::value>>
+    explicit IteratorRef(std::unique_ptr<Impl>&& _p) : p{ std::move(_p) } {};
+    IteratorRef(const IteratorRef&) = delete;
+    IteratorRef(IteratorRef&&) = default;
+    IteratorRef& operator=(const IteratorRef&) = delete;
+    IteratorRef& operator=(IteratorRef&&) = default;
+    ~IteratorRef() = default;
 
-inline auto IObject::begin() -> iterator {
-    return iterator(*this);
-}
+    IteratorRef& operator++() {
+        check();
+        ++(*p);
+        return *this;
+    }
 
-inline auto IObject::end() -> iterator {
-    return iterator(*this, iterator::end);
-}
+    reference operator*() {
+        check();
+        return **p;
+    }
 
-inline auto IObject::begin() const  -> const_iterator {
-    return const_iterator(*this);
-}
+    const_reference operator*() const {
+        check();
+        return **p;
+    }
 
-inline auto IObject::end() const  -> const_iterator {
-    return const_iterator(*this, const_iterator::end);
-}
+    pointer operator->() {
+        check();
+        return *p;
+    }
 
-inline auto IObject::cbegin() const -> const_iterator {
-    return begin();
-}
+    const_pointer operator->() const {
+        check();
+        return *p;
+    }
+    
+    operator T&() {
+        check();
+        return *p;
+    }    
 
-inline auto IObject::cend() const -> const_iterator {
-    return end();
-}
+    operator const T&() const {
+        check();
+        return *p;
+    }
 
-inline IObject::iterator IObjectRef::begin() {
+    bool operator==(const IteratorRef& rhs) const noexcept {
+        if (p == rhs.p)
+            return true;
+        else if (!p || !rhs.p)
+            return false;
+        else
+            return *p == *rhs.p;
+    }
+
+    bool operator!=(const IteratorRef& rhs) const noexcept {
+        return !(*this == rhs);
+    }
+
+    pointer get() {
+        check();
+        return p->get();
+    }
+
+    const_pointer get() const {
+        check();
+        return p->get();
+    }
+    
+    bool isValid() const noexcept
+    {
+        return  p ? p->isValid() : false;
+    }
+
+    operator bool() const noexcept {
+        return isValid();
+    }
+
+private:
+    void check() const{
+        if (!p)throw Exception{};
+    }
+    std::unique_ptr<T> p;
+};
+
+IObject::iterator IObjectRef::begin()
+{
     check();
     return obj->begin();
 }
 
-inline IObject::iterator IObjectRef::end() {
+IObject::iterator IObjectRef::end()
+{
     check();
     return obj->end();
 }
 
-inline IObject::const_iterator IObjectRef::begin() const
+IObject::const_iterator IObjectRef::begin() const
 {
-    check();
-    return static_cast<const IObject&>(*obj).begin();
-}
-
-inline IObject::const_iterator IObjectRef::end() const
-{
-    check();
-    return static_cast<const IObject&>(*obj).end();
-}
-
-inline IObject::const_iterator IObjectRef::cbegin() const {
     check();
     return obj->cbegin();
 }
+IObject::const_iterator IObjectRef::end() const
+{
+    check();
+    return obj->cend();
+}
 
-inline IObject::const_iterator IObjectRef::cend() const {
+IObject::const_iterator IObjectRef::cbegin() const
+{
+    check();
+    return obj->cbegin();
+}
+IObject::const_iterator IObjectRef::cend() const
+{
     check();
     return obj->cend();
 }
