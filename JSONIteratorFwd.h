@@ -69,6 +69,7 @@ protected:
 
 };
 
+// TODO(fecjanky): modify IteratorRef to be a regular type (i.e finish cloning impl in Iterator)
 template<typename T>
 class IteratorRef {
 public:

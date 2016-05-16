@@ -34,25 +34,6 @@
 namespace JSON {
 namespace impl {
 
-struct IsAggregateObject: public IVisitor {
-    explicit IsAggregateObject(const IObject& o_) :
-            o { o_ }, b { } {}
-    operator bool() const noexcept {
-        b = false;
-        o.accept(*this);
-        return b;
-    }
- private:
-    void visit(const Object&o) const override {
-        b = true;
-    }
-    void visit(const Array& a) const  override {
-        b = true;
-    }
-    const IObject& o;
-    mutable bool b;
-};
-
 template<class T>
 struct IteratorTHelper {
     using type = IObject;
@@ -134,11 +115,8 @@ public:
     bool operator==(const Iterator& rhs) const noexcept override {
         if (isValid() && rhs.isValid())
             return get() == rhs.get();
-        else if (!isValid() && !rhs.isValid())
-            return true;
         else
-            return false;
-
+            return (!isValid() && !rhs.isValid());
     }
 
     Iterator* clone() const override {
@@ -346,7 +324,6 @@ public:
             [&]() {stack.push(stack.top().get()->begin()); },
             [&]() {++stack.top(); }
         );
-
         while (!stack.empty() && !stack.top().isValid()) {
             stack.pop();
             if(!stack.empty())++stack.top();
@@ -373,7 +350,7 @@ public:
     
     bool operator==(const Iterator& rhs) const noexcept override 
     {
-        return true;
+        return get() == rhs.get();
     }
 
     pointer get() override 
