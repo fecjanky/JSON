@@ -170,7 +170,10 @@ inline void IndividualObject::serialize(StringType&& indentation,
 }
 
 
-inline Object::Object() {
+//inline Object::Object(){
+//}
+
+inline Object::Object(estd::poly_alloc_t& a) : values(a) {
 }
 
 inline IObjectRef Object::operator[](const StringType& key) {
@@ -262,7 +265,7 @@ inline bool Object::compare(const Object& o) const noexcept {
     return true;
 }
 
-inline Array::Array() {
+inline Array::Array(estd::poly_alloc_t& a) : values(a) {
 }
 
 inline IObjectRef Array::operator[](const StringType& key) {
@@ -409,14 +412,14 @@ inline const char* False::Literal() {
     return Literals::ValueFalse();
 }
 
-inline String::String() :
+inline String::String(estd::poly_alloc_t& a) :
     Base(StringType { }) {
 }
 
-inline String::String(const StringType& t) :
+inline String::String(estd::poly_alloc_t& a,const StringType& t) :
     Base(t) {
 }
-inline String::String(StringType&& t) :
+inline String::String(estd::poly_alloc_t& a,StringType&& t) :
     Base(std::move(t)) {
 }
 

@@ -1,0 +1,3 @@
+[submodule "estd"]
+	path = estd
+	url = https://github.com/fecjanky/estd.git

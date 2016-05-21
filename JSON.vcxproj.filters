@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="estd">
+      <UniqueIdentifier>{557b3184-3fa7-41a1-bf8d-1ff1a5a264fd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
@@ -52,6 +55,12 @@
     </ClInclude>
     <ClInclude Include="JSONParserFwd.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="estd\include\functional.h">
+      <Filter>estd</Filter>
+    </ClInclude>
+    <ClInclude Include="estd\include\memory.h">
+      <Filter>estd</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

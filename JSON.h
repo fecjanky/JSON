@@ -26,11 +26,14 @@
 #include <iostream>  // std::ostream
 #include <string>
 #include <sstream>
+#include <functional>
+
+#include "memory.h"
 
 #include "JSONFwd.h"
 
 // TODO(fecjanky): P1 Revive ObjectEntry and ArrayEntry classes
-// TODO(fecjanky): P2 Add Allocator support for Objects
+// TODO(fecjanky): P1 Solve String Type issues
 // TODO(fecjanky): P3 Mutable and Immutable objects
 namespace JSON {
 
@@ -78,7 +81,8 @@ struct AttributeNotUnique: public JSON::Exception {
 class IObjectRef;
 
 struct IObject {
-    using Ptr = std::unique_ptr<IObject>;
+    using Ptr = std::unique_ptr<IObject,std::function<void(IObject*)>>;
+    //using StringType = std::basic_string<char, std::char_traits<char>, estd::poly_alloc_wrapper<char>>;
     using StringType = std::string;
     using OstreamT = std::ostream;
 

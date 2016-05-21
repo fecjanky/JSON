@@ -33,6 +33,8 @@
 #include <limits>
 #include <cmath> // pow
 
+#include "memory.h"
+
 #include "JSONFwd.h"
 #include "JSON.h"
 #include "JSONLiterals.h"
@@ -137,7 +139,7 @@ struct Return {
         static_assert(std::is_same<IObject::Ptr,
                 decltype(s.object)>::value,
                 "State member object is not type of Object pointer");
-        s.object = JSON::Create<JSONT>(std::move(s.token));
+        s.object = JSON::Create<JSONT>(p.getAllocator(),std::move(s.token));
         return current_parser.nextParser(p);
     }
 };
@@ -288,7 +290,7 @@ inline LiteralParser<JSONLiteral>::State::State(IParser& p) :
 
 template<class JSONLiteral>
 inline IObject::Ptr LiteralParser<JSONLiteral>::State::getObject() {
-    return JSON::Create<JSONLiteral>();
+    return std::move(this->obj);
 }
 
 template<class JSONLiteral>
@@ -301,6 +303,7 @@ LiteralParser<JSONLiteral>::check(ISubParserState& s, IParser& p) {
             p.getCurrentChar())) {
         throw LiteralException();
     } else if (state.current_pos == literal_size) {
+        state.obj = JSON::Create<JSONLiteral>(p.getAllocator());
         return this->nextParser(p);
     } else {
         return *this;
@@ -387,7 +390,7 @@ ISubParser& NumberParser::CallBack::operator()(NumberParser& cp, NumberParser::S
     auto exp = !s.expSigned ? s.exponentPart : -1 * s.exponentPart;
     auto base = !s.sign ? (s.integerPart + s.fractionPart) : -1.0*(s.integerPart + s.fractionPart);
     auto num = base*pow(10.0, exp);
-    s.object = JSON::Create<JSON::Number>(num);
+    s.object = JSON::Create<JSON::Number>(p.getAllocator(),num);
     return cp.nextParser(p)(p);
 }
 
@@ -487,7 +490,7 @@ inline ISubParser& NumberParser::exponentPart(ISubParserState& state,
 
 inline ObjectParser::State::State(IParser& p) :
         ParserTemplate<ObjectParser>::State(p), object(
-                JSON::Create<JSON::Object>()) {
+                JSON::Create<JSON::Object>(p.getAllocator())) {
 }
 
 inline IObject::Ptr ObjectParser::State::getObject() {
@@ -560,7 +563,7 @@ ISubParser& ObjectParser::nextMember(ISubParserState& s, IParser& p) {
 
 inline ArrayParser::State::State(IParser& p) :
         ParserTemplate<ArrayParser>::State(p), object {
-                JSON::Create<JSON::Array>() } {
+                JSON::Create<JSON::Array>(p.getAllocator()) } {
 }
 
 inline IObject::Ptr ArrayParser::State::getObject() {
@@ -676,8 +679,8 @@ inline ISubParser& StringParser::parseUnicodeEscapeChar(ISubParserState& s,
 
 class Parser: public impl::IParser {
  public:
-    Parser() :
-            current_char { } {
+    Parser(estd::poly_alloc_t& a) :
+        current_char{},objects(a), _allocator{ a } {
         stateStack.push(impl::ISubParserState::Create<impl::WSParser>(*this));
     }
 
@@ -730,22 +733,29 @@ class Parser: public impl::IParser {
         return lastState;
     }
 
+    estd::poly_alloc_t& getAllocator() noexcept override
+    {
+        return _allocator;
+    }
+
     char current_char;
     ObjContainer objects;
     ParserTuple parsers;
     ParserStateStack stateStack;
     ISubParserStatePtr lastState;
+    estd::poly_alloc_t& _allocator;
 };
 
 template<typename ForwardIterator>
-ObjContainer parse(ForwardIterator start, ForwardIterator end) {
+ObjContainer parse(estd::poly_alloc_t& a,ForwardIterator start, ForwardIterator end) {
     static_assert(
             std::is_same<
             char,
             std::decay_t<decltype(*(std::declval<ForwardIterator>()))>
             >::value,
             "ForwardIterator does not dereference to char");
-    Parser p;
+
+    Parser p(a);
 
     for (; start != end; ++start) {
         p(*start);

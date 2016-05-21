@@ -26,6 +26,8 @@
 #include <vector>
 #include <cstddef>  // nullptr_t
 
+#include "memory.h"
+
 #include "JSONFwd.h"
 #include "JSON.h"
 #include "JSONLiterals.h"
@@ -99,11 +101,14 @@ class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
     using Key = StringType;
     using Value = Ptr;
     using Entry = std::pair<const Key, Value>;
-    using Container = std::unordered_map<Key, Value>;
+    using allocator_type = estd::poly_alloc_wrapper<Entry>;
+    using Container = std::unordered_map<Key, Value, std::hash<Key>, std::equal_to<Key>, allocator_type>;
+    //using Container = std::unordered_map<Key, Value,std::hash<Key>,std::equal_to<Key>>;
     using Literals = JSON::Literals;
     using iterator2 = IObject::iterator;
-
-    Object();
+    
+    //Object();
+    Object(estd::poly_alloc_t&);
     IObjectRef operator[](const StringType& key) override;
     const IObject& operator[](const StringType& key) const override;
     IObjectRef operator[](size_t index) override;
@@ -141,11 +146,12 @@ class Array: public impl::IObjectIFImpl<AggregateObject, Array> {
     using Ptr = AggregateObject::Ptr;
     using IObject = AggregateObject::IObject;
     using Value = Ptr;
-    using Container = std::vector<Value>;
+    using allocator_type = estd::poly_alloc_wrapper<Value>;
+    using Container = std::vector<Value, allocator_type>;
     using Literals = JSON::Literals;
     using iterator2 = IObject::iterator;
 
-    Array();
+    Array(estd::poly_alloc_t&);
     IObjectRef operator[](const StringType& key) override;
     const IObject& operator[](const StringType& key) const override;
     IObjectRef operator[](size_t index) override;
@@ -212,6 +218,9 @@ class True: public impl::VisitorImpl<Bool,True> {
     True();
     explicit True(const StringType& s);
     explicit True(StringType&& s);
+    True(estd::poly_alloc_t&) : True() {};
+    explicit True(estd::poly_alloc_t&, const StringType& s) : True(s) {};
+    explicit True(estd::poly_alloc_t&, StringType&& s) : True(std::move(s)) {};
     static const char* Literal();
 };
 
@@ -223,6 +232,9 @@ class False: public impl::VisitorImpl<Bool, False> {
     False();
     explicit False(const StringType& s);
     explicit False(StringType&& s);
+    False(estd::poly_alloc_t&) : False() {};
+    explicit False(estd::poly_alloc_t&, const StringType& s) : False(s) {};
+    explicit False(estd::poly_alloc_t&, StringType&& s) : False(std::move(s)) {};
     static const char* Literal();
 };
 
@@ -232,9 +244,9 @@ class String: public impl::IObjectIFImpl<BuiltIn, String> {
     using StringType = BuiltIn::StringType;
     using OstreamT = BuiltIn::OstreamT;
 
-    String();
-    explicit String(const StringType& t);
-    explicit String(StringType&& t);
+    String(estd::poly_alloc_t&);
+    explicit String(estd::poly_alloc_t&,const StringType& t);
+    explicit String(estd::poly_alloc_t&,StringType&& t);
     void serialize(StringType&&, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     bool compare(const String&) const noexcept;
@@ -248,6 +260,9 @@ class Number: public impl::IObjectIFImpl<BuiltIn, Number> {
     explicit Number(double d = 0.0);
     explicit Number(const StringType& s);
     explicit Number(StringType&& s);
+    Number(estd::poly_alloc_t&, double d = 0.0) : Number(d) {}
+    explicit Number(estd::poly_alloc_t&, const StringType& s) : Number(s) {};
+    explicit Number(estd::poly_alloc_t&, StringType&& s) : Number(std::move(s)) {};
     double getNativeValue() const noexcept;
     bool compare(const Number&) const noexcept;
     const StringType& getValue() const override;
@@ -266,6 +281,9 @@ class Null: public impl::IObjectIFImpl<BuiltIn, Null> {
     Null();
     explicit Null(const StringType& s);
     explicit Null(StringType&& s);
+    Null(estd::poly_alloc_t&) : Null() {};
+    explicit Null(estd::poly_alloc_t&, const StringType& s) : Null(s) {};
+    explicit Null(estd::poly_alloc_t&, StringType&& s) : Null(std::move(s)) {};
     std::nullptr_t getNativeValue() const noexcept;
     static const char* Literal();
     bool compare(const Null&) const noexcept;
@@ -282,9 +300,22 @@ struct IsJSONType<
 > : public std::true_type {
 };
 
+//template<typename T, typename ... Args>
+//std::enable_if_t<IsJSONType<T>::value, IObject::Ptr> Create(Args&&... args) {
+//    return IObject::Ptr(new T(std::forward<Args>(args)...), [](IObject* p) {delete p;});
+//}
+
 template<typename T, typename ... Args>
-std::enable_if_t<IsJSONType<T>::value, IObject::Ptr> Create(Args&&... args) {
-    return IObject::Ptr(new T(std::forward<Args>(args)...));
+std::enable_if_t<IsJSONType<T>::value, IObject::Ptr> Create(estd::poly_alloc_t& a,Args&&... args) {
+    
+    estd::poly_alloc_wrapper<T> alloc(a);
+    auto deleter = [&](T*p) {alloc.deallocate(p, 1); };
+    std::unique_ptr<T, std::function<void(T*)> > p{ alloc.allocate(1),std::move(deleter) };
+    new (p.get()) T(a, std::forward<Args>(args)...);
+    return IObject::Ptr(p.release(), [=](IObject* p) mutable {
+        p->~IObject();
+        alloc.deallocate(static_cast<T*>(p), 1);
+    });
 }
 
 }  // namespace JSON

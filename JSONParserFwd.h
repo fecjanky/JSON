@@ -26,12 +26,15 @@
 #include <string>
 #include <stack>
 
+#include "memory.h"
+
 #include "JSONFwd.h"
 #include "JSON.h"
 
 namespace JSON {
 
-using ObjContainer = std::vector<JSON::IObject::Ptr>;
+using ObjContainer = std::vector<JSON::IObject::Ptr, estd::poly_alloc_wrapper<JSON::IObject::Ptr>>;
+//using ObjContainer = std::vector<JSON::IObject::Ptr>;
 
 namespace impl {
 
@@ -106,6 +109,7 @@ struct IParser {
     virtual ParserTuple& getParsers() noexcept = 0;
     virtual ParserStateStack& getStateStack() noexcept = 0;
     virtual ISubParserStatePtr& getLastState() noexcept = 0;
+    virtual estd::poly_alloc_t& getAllocator() noexcept = 0;
  protected:
     virtual ~IParser() = default;
 };
@@ -141,6 +145,7 @@ class LiteralParser: public ParserTemplate<LiteralParser<JSONLiteral>> {
         explicit State(IParser& p);
         IObject::Ptr getObject() override;
         size_t current_pos;
+        IObject::Ptr obj;
     };
 
     static char getFirstSymbolSet();
