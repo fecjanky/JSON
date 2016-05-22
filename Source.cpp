@@ -37,6 +37,9 @@ public:
         return std::numeric_limits<size_t>::max();
     }
 
+    bool operator==(const TestAllocator& rhs)const noexcept{
+        return this == &rhs;
+    }
     TestAllocator& operator=(TestAllocator&& rhs) noexcept{
         std::swap(_size, rhs._size);
         std::swap(memory, rhs.memory);
@@ -113,16 +116,16 @@ try {
 
                 auto objs = ::JSON::parse(test_allocator,json_text3.begin(), json_text3.end());
                 auto objs2 = ::JSON::parse(a,json_text3.begin(), json_text3.end());
-                auto o1 = JSON::Create<JSON::String>("Hello");
-                auto o2 = JSON::Create<JSON::String>("Hello");
-                auto a1 = JSON::Create<JSON::Array>();
-                auto a2 = JSON::Create<JSON::Array>();
+                auto o1 = JSON::Create<JSON::String>(JSON::IObject::StringType("Hello",a));
+                auto o2 = JSON::Create<JSON::String>(JSON::IObject::StringType("Hello",a));
+                auto a1 = JSON::Create<JSON::Array>(a);
+                auto a2 = JSON::Create<JSON::Array>(a);
                 auto& a1r = static_cast<JSON::Array&>(*a1);
                 auto& a2r = static_cast<JSON::Array&>(*a2);
-                a1r.emplace(JSON::Create<JSON::String>("Hello"));
-                a1r.emplace(JSON::Create<JSON::String>("World"));
-                a2r.emplace(JSON::Create<JSON::String>("Helloa"));
-                a2r.emplace(JSON::Create<JSON::String>("World"));
+                a1r.emplace(JSON::Create<JSON::String>(JSON::IObject::StringType("Hello",a)));
+                a1r.emplace(JSON::Create<JSON::String>(JSON::IObject::StringType("World",a)));
+                a2r.emplace(JSON::Create<JSON::String>(JSON::IObject::StringType("Helloa",a)));
+                a2r.emplace(JSON::Create<JSON::String>(JSON::IObject::StringType("World",a)));
                 bool eqa = *a1 == *a2;
 
                 bool eqs = *o1 == *o2;

@@ -186,7 +186,7 @@ class BuiltIn: public IndividualObject {
     void serialize(StringType&&, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
  protected:
-    BuiltIn();
+    BuiltIn(estd::poly_alloc_t&);
     explicit BuiltIn(const StringType& s);
     explicit BuiltIn(StringType&& s);
     mutable StringType value;
@@ -203,10 +203,10 @@ class Bool: public impl::CompareImpl<BuiltIn, Bool> {
     bool compare(const Bool&) const noexcept;
 
  protected:
-    explicit Bool(bool b = false);
+    explicit Bool(estd::poly_alloc_t&,bool b = false);
     explicit Bool(const StringType& s);
     explicit Bool(StringType&& s);
-    explicit Bool(const char * s);
+    explicit Bool(estd::poly_alloc_t&, const char * s);
  private:
     bool nativeValue;
 };
@@ -216,12 +216,12 @@ class True: public impl::VisitorImpl<Bool,True> {
     using Base = impl::VisitorImpl<Bool, True>;
     using StringType = Bool::StringType;
 
-    True();
+    //True();
+    //explicit True(const StringType& s);
+    //explicit True(StringType&& s);
+    True(estd::poly_alloc_t&);
     explicit True(const StringType& s);
     explicit True(StringType&& s);
-    True(estd::poly_alloc_t&) : True() {};
-    explicit True(estd::poly_alloc_t&, const StringType& s) : True(s) {};
-    explicit True(estd::poly_alloc_t&, StringType&& s) : True(std::move(s)) {};
     static const char* Literal();
 };
 
@@ -230,12 +230,12 @@ class False: public impl::VisitorImpl<Bool, False> {
     using Base = impl::VisitorImpl<Bool, False>;
     using StringType = Bool::StringType;
 
-    False();
+    //False();
+    //explicit False(const StringType& s);
+    //explicit False(StringType&& s);
+    False(estd::poly_alloc_t&);
     explicit False(const StringType& s);
     explicit False(StringType&& s);
-    False(estd::poly_alloc_t&) : False() {};
-    explicit False(estd::poly_alloc_t&, const StringType& s) : False(s) {};
-    explicit False(estd::poly_alloc_t&, StringType&& s) : False(std::move(s)) {};
     static const char* Literal();
 };
 
@@ -246,8 +246,8 @@ class String: public impl::IObjectIFImpl<BuiltIn, String> {
     using OstreamT = BuiltIn::OstreamT;
 
     String(estd::poly_alloc_t&);
-    explicit String(estd::poly_alloc_t&,const StringType& t);
-    explicit String(estd::poly_alloc_t&,StringType&& t);
+    explicit String(const StringType& t);
+    explicit String(StringType&& t);
     void serialize(StringType&&, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     bool compare(const String&) const noexcept;
@@ -258,12 +258,12 @@ class Number: public impl::IObjectIFImpl<BuiltIn, Number> {
     using Base = impl::IObjectIFImpl<BuiltIn, Number>;
     using StringType = BuiltIn::StringType;
 
-    explicit Number(double d = 0.0);
+    //explicit Number(double d = 0.0);
+    //explicit Number(const StringType& s);
+    //explicit Number(StringType&& s);
+    Number(estd::poly_alloc_t&, double d = 0.0);
     explicit Number(const StringType& s);
     explicit Number(StringType&& s);
-    Number(estd::poly_alloc_t&, double d = 0.0) : Number(d) {}
-    explicit Number(estd::poly_alloc_t&, const StringType& s) : Number(s) {};
-    explicit Number(estd::poly_alloc_t&, StringType&& s) : Number(std::move(s)) {};
     double getNativeValue() const noexcept;
     bool compare(const Number&) const noexcept;
     const StringType& getValue() const override;
@@ -279,12 +279,12 @@ class Null: public impl::IObjectIFImpl<BuiltIn, Null> {
     using Base = impl::IObjectIFImpl<BuiltIn, Null>;
     using StringType = BuiltIn::StringType;
 
-    Null();
+    //Null();
+    //explicit Null(const StringType& s);
+    //explicit Null(StringType&& s);
+    Null(estd::poly_alloc_t&);
     explicit Null(const StringType& s);
     explicit Null(StringType&& s);
-    Null(estd::poly_alloc_t&) : Null() {};
-    explicit Null(estd::poly_alloc_t&, const StringType& s) : Null(s) {};
-    explicit Null(estd::poly_alloc_t&, StringType&& s) : Null(std::move(s)) {};
     std::nullptr_t getNativeValue() const noexcept;
     static const char* Literal();
     bool compare(const Null&) const noexcept;
@@ -308,7 +308,7 @@ struct IsJSONType<
 
 template<typename T, typename ... Args>
 std::enable_if_t<IsJSONType<T>::value, IObject::Ptr> Create(std::allocator_arg_t,estd::poly_alloc_t& a,Args&&... args) {
-    return Utils::ToUniquePtr<IObject>(Utils::MakeUnique<T>(std::allocator_arg, a,a,std::forward<Args>(args)...));
+    return Utils::ToUniquePtr<IObject>(Utils::MakeUnique<T>(std::allocator_arg, a,std::forward<Args>(args)...));
 }
 
 template<typename T, typename ... Args>

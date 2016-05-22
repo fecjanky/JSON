@@ -168,9 +168,11 @@ public:
     using StatePtr = Base::StatePtr;
 
     struct State: public BaseState {
-        State(IParser& p) : BaseState(p),
+        State(IParser& p) : BaseState(p), token(p.getAllocator()),
             integerPart{}, sign{}, fractionPart{}, 
-            fractionPos{ -1 }, exponentPart{}, expSigned{} {}
+            fractionPos{ -1 }, exponentPart{}, expSigned{} {
+            token.reserve(64);
+        }
 
         IObject::Ptr getObject() override;
 
@@ -296,7 +298,7 @@ class StringParser: public ParserTemplate<StringParser> {
     using StatePtr = Base::StatePtr;
 
     struct State: public BaseState {
-        explicit State(IParser& p,estd::poly_alloc_t& = estd::default_poly_allocator::instance());
+        explicit State(IParser& p);
         IObject::Ptr getObject() override;
         IObject::Ptr object;
         IObject::StringType token;

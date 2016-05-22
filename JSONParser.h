@@ -303,7 +303,7 @@ LiteralParser<JSONLiteral>::check(ISubParserState& s, IParser& p) {
             p.getCurrentChar())) {
         throw LiteralException();
     } else if (state.current_pos == literal_size) {
-        state.obj = JSON::Create<JSONLiteral>(std::allocator_arg,p.getAllocator());
+        state.obj = JSON::Create<JSONLiteral>(std::allocator_arg,p.getAllocator(),p.getAllocator());
         return this->nextParser(p);
     } else {
         return *this;
@@ -390,7 +390,7 @@ ISubParser& NumberParser::CallBack::operator()(NumberParser& cp, NumberParser::S
     auto exp = !s.expSigned ? s.exponentPart : -1 * s.exponentPart;
     auto base = !s.sign ? (s.integerPart + s.fractionPart) : -1.0*(s.integerPart + s.fractionPart);
     auto num = base*pow(10.0, exp);
-    s.object = JSON::Create<JSON::Number>(std::allocator_arg, p.getAllocator(),num);
+    s.object = JSON::Create<JSON::Number>(std::allocator_arg, p.getAllocator(),p.getAllocator(),num);
     return cp.nextParser(p)(p);
 }
 
@@ -490,7 +490,9 @@ inline ISubParser& NumberParser::exponentPart(ISubParserState& state,
 
 inline ObjectParser::State::State(IParser& p) :
         ParserTemplate<ObjectParser>::State(p), object(
-                JSON::Create<JSON::Object>(std::allocator_arg, p.getAllocator())) {
+                JSON::Create<JSON::Object>(std::allocator_arg, p.getAllocator(),p.getAllocator())),
+                currentKey(p.getAllocator()){
+    currentKey.reserve(64);
 }
 
 inline IObject::Ptr ObjectParser::State::getObject() {
@@ -563,7 +565,7 @@ ISubParser& ObjectParser::nextMember(ISubParserState& s, IParser& p) {
 
 inline ArrayParser::State::State(IParser& p) :
         ParserTemplate<ArrayParser>::State(p), object {
-                JSON::Create<JSON::Array>(std::allocator_arg,p.getAllocator()) } {
+                JSON::Create<JSON::Array>(std::allocator_arg,p.getAllocator(),p.getAllocator()) } {
 }
 
 inline IObject::Ptr ArrayParser::State::getObject() {
@@ -625,8 +627,9 @@ inline ISubParser& WSParser::dispatch(ISubParserState& state, IParser& p) {
     }
 }
 
-inline StringParser::State::State(IParser& p,estd::poly_alloc_t & a) : BaseState(p)
+inline StringParser::State::State(IParser& p) : BaseState(p), token(p.getAllocator())
 {
+    token.reserve(64);
 }
 
 inline IObject::Ptr StringParser::State::getObject() {

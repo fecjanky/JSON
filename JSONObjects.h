@@ -132,11 +132,11 @@ struct Validator<bool> {
     }
 };
 
-IObject::StringType to_string(bool b) {
+IObject::StringType to_string(estd::poly_alloc_t& a, bool b) {
     if (b)
-        return IObject::StringType(Literals::ValueTrue());
+        return IObject::StringType(Literals::ValueTrue(),a);
     else
-        return IObject::StringType(Literals::ValueFalse());
+        return IObject::StringType(Literals::ValueFalse(),a);
 }
 
 
@@ -348,23 +348,23 @@ inline void BuiltIn::serialize(OstreamT& os) const {
     os << value;
 }
 
-inline BuiltIn::BuiltIn() :
-        value { } {
+inline BuiltIn::BuiltIn(estd::poly_alloc_t& a) :
+        value{a} {
 }
 inline BuiltIn::BuiltIn(const StringType& s) :
-        value { s } {
+    value{ s,s.get_allocator() } {
 }
 
 inline BuiltIn::BuiltIn(StringType&& s) :
-        value { std::move(s) } {
+        value { std::move(s), s.get_allocator()} {
 }
 
 inline bool Bool::getNativeValue() const noexcept {
     return nativeValue;
 }
 
-inline Bool::Bool(bool b) :
-    Base(impl::to_string(b)), nativeValue { b } {
+inline Bool::Bool(estd::poly_alloc_t& a, bool b) :
+    Base(impl::to_string(a,b)), nativeValue { b } {
 }
 
 inline Bool::Bool(const StringType& s) :
@@ -375,16 +375,16 @@ inline Bool::Bool(StringType&& s) :
     Base(impl::Validator<bool> { }(std::move(s))) {
 }
 
-inline Bool::Bool(const char * s) :
-        Bool(StringType(s)) {
+inline Bool::Bool(estd::poly_alloc_t& a, const char * s) :
+        Bool(StringType(s,a)) {
 }
 
 inline bool Bool::compare(const Bool& b) const noexcept {
     return b.nativeValue == nativeValue;
 }
 
-inline True::True() :
-    Base(Literals::ValueTrue()) {
+inline True::True(estd::poly_alloc_t& a) :
+    Base(StringType(Literals::ValueTrue(),a)) {
 }
 
 inline True::True(const StringType& s) :
@@ -399,8 +399,8 @@ inline const char* True::Literal() {
     return Literals::ValueTrue();
 }
 
-inline False::False() :
-    Base(Literals::ValueFalse()) {
+inline False::False(estd::poly_alloc_t& a) :
+    Base(StringType(Literals::ValueFalse(),a)) {
 }
 inline False::False(const StringType& s) :
     Base(s) {
@@ -416,10 +416,10 @@ inline String::String(estd::poly_alloc_t& a) :
     Base(StringType { }) {
 }
 
-inline String::String(estd::poly_alloc_t& a,const StringType& t) :
+inline String::String(const StringType& t) :
     Base(t) {
 }
-inline String::String(estd::poly_alloc_t& a,StringType&& t) :
+inline String::String(StringType&& t) :
     Base(std::move(t)) {
 }
 
@@ -436,7 +436,7 @@ inline bool String::compare(const String& s) const noexcept {
     return s.getValue() == getValue();
 }
 
-inline Number::Number(double d) :
+inline Number::Number(estd::poly_alloc_t& a, double d) : Base(a),
         nativeValue { d } {
 }
 
@@ -456,7 +456,7 @@ inline const Number::StringType & Number::getValue() const
 {
     if (this->value.empty()) {
         auto i = static_cast<long long>(this->nativeValue);
-        IObject::SStream ss{};
+        IObject::SStream ss(this->value);
         if (this->nativeValue == static_cast<decltype(this->nativeValue)>(i)) {
             ss << i;
         } else {
@@ -481,8 +481,8 @@ inline bool Number::compare(const Number& n) const noexcept {
     return n.nativeValue == nativeValue;
 }
 
-inline Null::Null() :
-    Base(StringType(Literals::ValueNull())) {
+inline Null::Null(estd::poly_alloc_t& a) :
+    Base(StringType(Literals::ValueNull(),a)) {
 }
 
 inline Null::Null(const StringType& s) :
