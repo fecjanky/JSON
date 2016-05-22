@@ -679,8 +679,8 @@ inline ISubParser& StringParser::parseUnicodeEscapeChar(ISubParserState& s,
 
 class Parser: public impl::IParser {
  public:
-    Parser(estd::poly_alloc_t& a) :
-        current_char{},objects(a), _allocator{ a } {
+    explicit Parser(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) :
+        current_char{}, stateStack(estd::poly_alloc_wrapper<ISubParserStatePtr>(a)) , objects(a), _allocator{ a } {
         stateStack.push(impl::ISubParserState::Create<impl::WSParser>(*this));
     }
 

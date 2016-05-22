@@ -67,7 +67,7 @@ NullParser
 >;
 
 using ISubParserStatePtr = Utils::UniquePtr<ISubParserState>;
-using ParserStateStack = std::stack<ISubParserStatePtr>;
+using ParserStateStack = std::stack<ISubParserStatePtr,std::deque<ISubParserStatePtr,estd::poly_alloc_wrapper<ISubParserStatePtr>>>;
 
 struct Exception: public std::exception {
 };

@@ -5,6 +5,68 @@
 #include "JSON.h"
 #include "JSONParser.h"
 
+class TestAllocator {
+public:
+    using value_type = uint8_t;
+
+    TestAllocator(size_t size) : _size{ size }, memory{ new uint8_t[_size] }, free{ memory } {
+    }
+
+    ~TestAllocator() {
+        delete[] memory;
+    }
+
+    TestAllocator(const TestAllocator& other) :_size{ other._size }, memory{ new uint8_t[_size] }, free{ memory } {
+    }
+    TestAllocator(TestAllocator&& other) noexcept:_size{}, memory{}, free{} {
+        std::swap(_size, other._size);
+        std::swap(memory, other.memory);
+        std::swap(free, other.free);
+    }
+
+    TestAllocator& operator=(const TestAllocator& rhs) {
+        if (this != &rhs) {
+            tidy();
+            _size = rhs._size;
+            memory = free = new uint8_t[_size];
+        }
+        return *this;
+    }
+
+    size_t max_size()const noexcept {
+        return std::numeric_limits<size_t>::max();
+    }
+
+    TestAllocator& operator=(TestAllocator&& rhs) noexcept{
+        std::swap(_size, rhs._size);
+        std::swap(memory, rhs.memory);
+        std::swap(free, rhs.free);
+        return *this;
+    }
+
+    uint8_t* allocate(size_t n,const uint8_t*) {
+        if (free + n >= memory + _size) throw std::bad_alloc{};
+        auto ret = free;
+        free += n;
+        return ret;
+    }
+
+    void deallocate(uint8_t *,size_t) {
+    }
+
+private:
+    void tidy() noexcept{
+        delete[] memory;
+        free = memory = nullptr;
+        _size = 0;
+    }
+
+    size_t _size;
+    uint8_t* memory;
+    uint8_t* free;
+
+};
+
 int main(int, char**)
 try {
 ///*
@@ -45,7 +107,9 @@ try {
                 //    << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() 
                 //    << " ms" << std::endl;
                 estd::poly_alloc_impl<std::allocator<uint8_t>> a;
-                auto objs = ::JSON::parse(a,json_text3.begin(), json_text3.end());
+                auto test_allocator = estd::to_poly_allocator(TestAllocator(1024*1024*8));
+
+                auto objs = ::JSON::parse(test_allocator,json_text3.begin(), json_text3.end());
                 auto objs2 = ::JSON::parse(a,json_text3.begin(), json_text3.end());
                 auto o1 = JSON::Create<JSON::String>("Hello");
                 auto o2 = JSON::Create<JSON::String>("Hello");
