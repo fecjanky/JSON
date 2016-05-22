@@ -75,18 +75,18 @@ struct Validator;
 
 template<>
 struct Validator<double> {
-    const std::string& operator()(const std::string& rep) const {
+    const IObject::StringType& operator()(const IObject::StringType& rep) const {
         return validate(rep);
     }
 
-    std::string&& operator()(std::string&& rep) const {
+    IObject::StringType&& operator()(IObject::StringType&& rep) const {
         return validate(std::move(rep));
     }
  private:
     template<typename StringType>
     StringType&& validate(StringType&& str) const {
         double temp { };
-        std::stringstream ss(str);
+        IObject::SStream ss(str);
         ss << std::scientific;
         ss >> temp;
         if (ss.bad() || ss.fail() || ss.peek() != std::char_traits<char>::eof())
@@ -97,11 +97,11 @@ struct Validator<double> {
 
 template<>
 struct Validator<std::nullptr_t> {
-    const std::string& operator()(const std::string& rep) const {
+    const IObject::StringType& operator()(const IObject::StringType& rep) const {
         return validate(rep);
     }
 
-    std::string&& operator()(std::string&& rep) const {
+    IObject::StringType&& operator()(IObject::StringType&& rep) const {
         return validate(std::move(rep));
     }
  private:
@@ -115,28 +115,28 @@ struct Validator<std::nullptr_t> {
 
 template<>
 struct Validator<bool> {
-    const std::string& operator()(const std::string& rep) const {
+    const IObject::StringType& operator()(const IObject::StringType& rep) const {
         return validate(rep);
     }
 
-    std::string&& operator()(std::string&& rep) const {
+    IObject::StringType&& operator()(IObject::StringType&& rep) const {
         return validate(std::move(rep));
     }
  private:
     template<typename StringType>
     StringType&& validate(StringType&& str) const {
-        if (str != std::basic_string<char>(Literals::ValueFalse())
-                && str != std::string(Literals::ValueTrue()))
+        if (str != IObject::StringType(Literals::ValueFalse())
+                && str != IObject::StringType(Literals::ValueTrue()))
             throw ValueError();
         return std::forward<StringType>(str);
     }
 };
 
-std::string to_string(bool b) {
+IObject::StringType to_string(bool b) {
     if (b)
-        return std::string(Literals::ValueTrue());
+        return IObject::StringType(Literals::ValueTrue());
     else
-        return std::string(Literals::ValueFalse());
+        return IObject::StringType(Literals::ValueFalse());
 }
 
 
@@ -456,13 +456,13 @@ inline const Number::StringType & Number::getValue() const
 {
     if (this->value.empty()) {
         auto i = static_cast<long long>(this->nativeValue);
+        IObject::SStream ss{};
         if (this->nativeValue == static_cast<decltype(this->nativeValue)>(i)) {
-            this->value = std::to_string(i);
+            ss << i;
         } else {
-            std::stringstream ss{};
             ss << this->nativeValue;
-            this->value = ss.str();
         }
+        this->value = ss.str();
     }
     return this->value;
 }

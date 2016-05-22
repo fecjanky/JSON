@@ -106,7 +106,7 @@ struct Store {
         transformer{ t } {}
     template<typename ParserT, typename StateT>
     ISubParser& operator()(ParserT& current_parser, StateT& s, IParser&p) {
-        static_assert(std::is_same<std::string, decltype(s.token)>::value,
+        static_assert(std::is_same<IObject::StringType, decltype(s.token)>::value,
                 "State member token is not type of string");
         s.token.push_back(transformer(p.getCurrentChar()));
         return current_parser;
@@ -623,6 +623,10 @@ inline ISubParser& WSParser::dispatch(ISubParserState& state, IParser& p) {
     } else {
         return DispatchFirstSymbol(p, p.getParsers());
     }
+}
+
+inline StringParser::State::State(IParser& p,estd::poly_alloc_t & a) : BaseState(p)
+{
 }
 
 inline IObject::Ptr StringParser::State::getObject() {

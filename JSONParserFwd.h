@@ -175,7 +175,7 @@ public:
         IObject::Ptr getObject() override;
 
         IObject::Ptr object;
-        std::string token;
+        IObject::StringType token;
         int integerPart;
         bool sign;
         double fractionPart;
@@ -244,7 +244,7 @@ class ObjectParser: public ParserTemplate<ObjectParser> {
         IObject::Ptr getObject() override;
 
         IObject::Ptr object;
-        std::string currentKey;
+        IObject::StringType currentKey;
     };
 
     static char getFirstSymbolSet();
@@ -296,10 +296,10 @@ class StringParser: public ParserTemplate<StringParser> {
     using StatePtr = Base::StatePtr;
 
     struct State: public BaseState {
-        using BaseState::BaseState;
+        explicit State(IParser& p,estd::poly_alloc_t& = estd::default_poly_allocator::instance());
         IObject::Ptr getObject() override;
         IObject::Ptr object;
-        std::string token;
+        IObject::StringType token;
     };
 
     static char getFirstSymbolSet();

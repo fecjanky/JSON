@@ -83,9 +83,11 @@ class IObjectRef;
 
 struct IObject {
     using Ptr = std::unique_ptr<IObject,std::function<void(void*)>>;
-    //using StringType = std::basic_string<char, std::char_traits<char>, estd::poly_alloc_wrapper<char>>;
-    using StringType = std::string;
+    using CharAllocator = estd::poly_alloc_wrapper<char>;
+    using StringType = std::basic_string<char, std::char_traits<char>, CharAllocator>;
+    //using StringType = std::string;
     using OstreamT = std::ostream;
+    using SStream = std::basic_stringstream<char, std::char_traits<char>, CharAllocator>;
 
     using iterator = IteratorRef<Iterator<IObject>>;
     using const_iterator = IteratorRef<Iterator<const IObject>>;
@@ -131,8 +133,8 @@ struct IObject {
 class IObjectRef {
 public:
     using Ptr = IObject::Ptr;
-    using StringType = std::string;
-    using OstreamT = std::ostream;
+    using StringType = IObject::StringType;
+    using OstreamT = IObject::OstreamT;
 
     IObjectRef(Ptr& o) : obj{ o } {}
     IObjectRef(const IObjectRef& o) : obj{ o.obj } {}
@@ -202,7 +204,7 @@ private:
 };
 
 inline std::ostream& operator <<(std::ostream& os, const IObject& obj) {
-    obj.serialize(std::string { }, os);
+    obj.serialize(IObject::StringType{}, os);
     return os;
 }
 

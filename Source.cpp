@@ -94,20 +94,22 @@ try {
              )--" };
              */
             {
-                //std::vector<JSON::Ptr> objstorage;
-                //auto start = std::chrono::steady_clock::now();
-                //int loops = 0;
-                //while (std::chrono::steady_clock::now() - start < std::chrono::seconds{ 60 }) {
-                //    auto objs = ::JSON::parse(json_text3.begin(), json_text3.end());
-                //    objstorage.emplace_back(std::move(objs[0]));
-                //    loops++;
-                //}
-                //auto end = std::chrono::steady_clock::now();
-                //std::cout << loops << " " 
-                //    << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() 
-                //    << " ms" << std::endl;
+                auto test_allocator = estd::to_poly_allocator(TestAllocator(1024 * 1024 * 1024));
+                //std::vector<JSON::IObject> objstorage;
+                auto start = std::chrono::steady_clock::now();
+                int loops = 0;
+                while (std::chrono::steady_clock::now() - start < std::chrono::seconds{ 5 }) {
+                    auto objs = ::JSON::parse(test_allocator,json_text3.begin(), json_text3.end());
+                    loops++;
+                }
+                auto end = std::chrono::steady_clock::now();
+                std::cout << loops << " " 
+                    << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() 
+                    << " ms" << std::endl;
+
+                return 0;
                 estd::poly_alloc_impl<std::allocator<uint8_t>> a;
-                auto test_allocator = estd::to_poly_allocator(TestAllocator(1024*1024*8));
+                
 
                 auto objs = ::JSON::parse(test_allocator,json_text3.begin(), json_text3.end());
                 auto objs2 = ::JSON::parse(a,json_text3.begin(), json_text3.end());
