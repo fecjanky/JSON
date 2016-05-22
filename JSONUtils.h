@@ -25,6 +25,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "memory.h"
 #include "JSONFwd.h"
 
 namespace JSON {
@@ -458,6 +459,33 @@ private:
     std::function<void(void)> match_function, nomatch_function;
 };
 
+template<typename T>
+using UniquePtr = std::unique_ptr<T, std::function<void(void*)>>;
+
+template<typename T,typename... Args>
+UniquePtr<T> MakeUnique(estd::poly_alloc_t& a, Args&&... args) {
+    using traits = std::allocator_traits<estd::poly_alloc_wrapper<T>>;
+    estd::poly_alloc_wrapper<T> allocator(a);
+    auto deallocator = [&](void* p) mutable { allocator.deallocate(static_cast<T*>(p),1); };
+    UniquePtr<T> temp(allocator.allocate(1),std::move(deallocator));
+    new (temp.get()) T(std::forward<Args>(args)...);
+    auto deleter = [=](void* p) mutable { 
+        auto pp = static_cast<T*>(p);traits::destroy(allocator, pp); allocator.deallocate(pp, 1); 
+    };
+    return UniquePtr<T>(temp.release(),std::move(deleter));
+
+}
+
+template<typename T, typename... Args>
+UniquePtr<T> MakeUnique(Args&&... args) {
+    return MakeUnique(estd::default_poly_allocator::instance(), std::forward<Args>(args)...);
+
+}
+
+template<typename IF,typename T>
+UniquePtr<IF> ToUniquePtr(UniquePtr<T>&& p) noexcept {
+    return UniquePtr<IF>(p.release(), std::move(p.get_deleter()));
+}
 
 }  // namespace Utils
 }  // namespace JSON

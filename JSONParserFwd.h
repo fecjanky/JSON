@@ -30,6 +30,7 @@
 
 #include "JSONFwd.h"
 #include "JSON.h"
+#include "JSONUtils.h"
 
 namespace JSON {
 
@@ -65,7 +66,7 @@ FalseParser,
 NullParser
 >;
 
-using ISubParserStatePtr = std::unique_ptr<ISubParserState>;
+using ISubParserStatePtr = Utils::UniquePtr<ISubParserState>;
 using ParserStateStack = std::stack<ISubParserStatePtr>;
 
 struct Exception: public std::exception {
@@ -97,7 +98,7 @@ struct ISubParserState {
             std::is_base_of<ISubParser, SubParserT>::value> >
     static ISubParserStatePtr Create(IParser& p) {
         using State = typename SubParserT::State;
-        return ISubParserStatePtr(new State(p));
+        return Utils::ToUniquePtr<ISubParserState>(Utils::MakeUnique<State>(p.getAllocator(),State(p)));
     }
 };
 

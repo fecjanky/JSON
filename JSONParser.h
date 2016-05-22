@@ -139,7 +139,7 @@ struct Return {
         static_assert(std::is_same<IObject::Ptr,
                 decltype(s.object)>::value,
                 "State member object is not type of Object pointer");
-        s.object = JSON::Create<JSONT>(p.getAllocator(),std::move(s.token));
+        s.object = JSON::Create<JSONT>(std::allocator_arg,p.getAllocator(),std::move(s.token));
         return current_parser.nextParser(p);
     }
 };
@@ -303,7 +303,7 @@ LiteralParser<JSONLiteral>::check(ISubParserState& s, IParser& p) {
             p.getCurrentChar())) {
         throw LiteralException();
     } else if (state.current_pos == literal_size) {
-        state.obj = JSON::Create<JSONLiteral>(p.getAllocator());
+        state.obj = JSON::Create<JSONLiteral>(std::allocator_arg,p.getAllocator());
         return this->nextParser(p);
     } else {
         return *this;
@@ -390,7 +390,7 @@ ISubParser& NumberParser::CallBack::operator()(NumberParser& cp, NumberParser::S
     auto exp = !s.expSigned ? s.exponentPart : -1 * s.exponentPart;
     auto base = !s.sign ? (s.integerPart + s.fractionPart) : -1.0*(s.integerPart + s.fractionPart);
     auto num = base*pow(10.0, exp);
-    s.object = JSON::Create<JSON::Number>(p.getAllocator(),num);
+    s.object = JSON::Create<JSON::Number>(std::allocator_arg, p.getAllocator(),num);
     return cp.nextParser(p)(p);
 }
 
@@ -490,7 +490,7 @@ inline ISubParser& NumberParser::exponentPart(ISubParserState& state,
 
 inline ObjectParser::State::State(IParser& p) :
         ParserTemplate<ObjectParser>::State(p), object(
-                JSON::Create<JSON::Object>(p.getAllocator())) {
+                JSON::Create<JSON::Object>(std::allocator_arg, p.getAllocator())) {
 }
 
 inline IObject::Ptr ObjectParser::State::getObject() {
@@ -563,7 +563,7 @@ ISubParser& ObjectParser::nextMember(ISubParserState& s, IParser& p) {
 
 inline ArrayParser::State::State(IParser& p) :
         ParserTemplate<ArrayParser>::State(p), object {
-                JSON::Create<JSON::Array>(p.getAllocator()) } {
+                JSON::Create<JSON::Array>(std::allocator_arg,p.getAllocator()) } {
 }
 
 inline IObject::Ptr ArrayParser::State::getObject() {

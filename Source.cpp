@@ -47,16 +47,16 @@ try {
                 estd::poly_alloc_impl<std::allocator<uint8_t>> a;
                 auto objs = ::JSON::parse(a,json_text3.begin(), json_text3.end());
                 auto objs2 = ::JSON::parse(a,json_text3.begin(), json_text3.end());
-                auto o1 = JSON::Create<JSON::String>(a,"Hello");
-                auto o2 = JSON::Create<JSON::String>(a,"Hello");
-                auto a1 = JSON::Create<JSON::Array>(a);
-                auto a2 = JSON::Create<JSON::Array>(a);
+                auto o1 = JSON::Create<JSON::String>("Hello");
+                auto o2 = JSON::Create<JSON::String>("Hello");
+                auto a1 = JSON::Create<JSON::Array>();
+                auto a2 = JSON::Create<JSON::Array>();
                 auto& a1r = static_cast<JSON::Array&>(*a1);
                 auto& a2r = static_cast<JSON::Array&>(*a2);
-                a1r.emplace(JSON::Create<JSON::String>(a,"Hello"));
-                a1r.emplace(JSON::Create<JSON::String>(a,"World"));
-                a2r.emplace(JSON::Create<JSON::String>(a,"Helloa"));
-                a2r.emplace(JSON::Create<JSON::String>(a,"World"));
+                a1r.emplace(JSON::Create<JSON::String>("Hello"));
+                a1r.emplace(JSON::Create<JSON::String>("World"));
+                a2r.emplace(JSON::Create<JSON::String>("Helloa"));
+                a2r.emplace(JSON::Create<JSON::String>("World"));
                 bool eqa = *a1 == *a2;
 
                 bool eqs = *o1 == *o2;

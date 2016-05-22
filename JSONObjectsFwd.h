@@ -31,6 +31,7 @@
 #include "JSONFwd.h"
 #include "JSON.h"
 #include "JSONLiterals.h"
+#include "JSONUtils.h"
 
 namespace JSON {
 namespace impl {
@@ -306,16 +307,13 @@ struct IsJSONType<
 //}
 
 template<typename T, typename ... Args>
-std::enable_if_t<IsJSONType<T>::value, IObject::Ptr> Create(estd::poly_alloc_t& a,Args&&... args) {
-    
-    estd::poly_alloc_wrapper<T> alloc(a);
-    auto deleter = [&](T*p) {alloc.deallocate(p, 1); };
-    std::unique_ptr<T, std::function<void(T*)> > p{ alloc.allocate(1),std::move(deleter) };
-    new (p.get()) T(a, std::forward<Args>(args)...);
-    return IObject::Ptr(p.release(), [=](IObject* p) mutable {
-        p->~IObject();
-        alloc.deallocate(static_cast<T*>(p), 1);
-    });
+std::enable_if_t<IsJSONType<T>::value, IObject::Ptr> Create(std::allocator_arg_t,estd::poly_alloc_t& a,Args&&... args) {
+    return Utils::ToUniquePtr<IObject>(Utils::MakeUnique<T>(a,a,std::forward<Args>(args)...));
+}
+
+template<typename T, typename ... Args>
+std::enable_if_t<IsJSONType<T>::value, IObject::Ptr> Create(Args&&... args) {
+    return Create<T>(std::allocator_arg,estd::default_poly_allocator::instance(),std::forward<Args>(args)...);
 }
 
 }  // namespace JSON

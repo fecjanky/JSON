@@ -46,7 +46,6 @@ struct VisitorIF_Gen;
 }
 
 using IVisitor = impl::VisitorIF_Gen<
-    IObject,
     Object,
     ObjectEntry,
     Array,
