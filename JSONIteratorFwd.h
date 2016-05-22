@@ -78,6 +78,9 @@ public:
     using reference = typename T::reference;
     using const_pointer = typename T::const_pointer;
     using const_reference = typename T::const_reference;
+    template<typename T>
+    using UniquePtr = Utils::UniquePtr<T>;
+
     struct Exception : public std::exception {
         const char * what()const noexcept override {
             return "dereferenced invalid iterator";
@@ -86,7 +89,7 @@ public:
 
     IteratorRef() = default;
     template<typename Impl,typename = std::enable_if_t<std::is_base_of<T,Impl>::value>>
-    explicit IteratorRef(std::unique_ptr<Impl>&& _p) : p{ std::move(_p) } {};
+    explicit IteratorRef(UniquePtr<Impl>&& _p) : p{ std::move(_p) } {};
     IteratorRef(const IteratorRef&) = delete;
     IteratorRef(IteratorRef&&) = default;
     IteratorRef& operator=(const IteratorRef&) = delete;
@@ -165,41 +168,41 @@ private:
     void check() const{
         if (!p)throw Exception{};
     }
-    std::unique_ptr<T> p;
+    UniquePtr<T> p;
 };
 
-IObject::iterator IObjectRef::begin()
+IObject::iterator IObjectRef::begin(estd::poly_alloc_t& a)
 {
     check();
-    return obj->begin();
+    return obj->begin(a);
 }
 
-IObject::iterator IObjectRef::end()
+IObject::iterator IObjectRef::end(estd::poly_alloc_t& a)
 {
     check();
-    return obj->end();
+    return obj->end(a);
 }
 
-IObject::const_iterator IObjectRef::begin() const
+IObject::const_iterator IObjectRef::begin(estd::poly_alloc_t& a) const
 {
     check();
-    return obj->cbegin();
+    return obj->cbegin(a);
 }
-IObject::const_iterator IObjectRef::end() const
+IObject::const_iterator IObjectRef::end(estd::poly_alloc_t& a) const
 {
     check();
-    return obj->cend();
+    return obj->cend(a);
 }
 
-IObject::const_iterator IObjectRef::cbegin() const
+IObject::const_iterator IObjectRef::cbegin(estd::poly_alloc_t& a) const
 {
     check();
-    return obj->cbegin();
+    return obj->cbegin(a);
 }
-IObject::const_iterator IObjectRef::cend() const
+IObject::const_iterator IObjectRef::cend(estd::poly_alloc_t& a) const
 {
     check();
-    return obj->cend();
+    return obj->cend(a);
 }
 
 }  // namespace JSON

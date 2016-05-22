@@ -118,12 +118,12 @@ struct IObject {
     virtual void accept(const IVisitor&) const = 0;
 
 
-    virtual iterator begin() = 0;
-    virtual iterator end() = 0;
-    virtual const_iterator begin() const  = 0;
-    virtual const_iterator end() const = 0;
-    virtual const_iterator cbegin() const = 0;
-    virtual const_iterator cend() const = 0;
+    virtual iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) = 0;
+    virtual iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) = 0;
+    virtual const_iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const  = 0;
+    virtual const_iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const = 0;
+    virtual const_iterator cbegin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const = 0;
+    virtual const_iterator cend(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const = 0;
     
     virtual ~IObject() = default;
 };
@@ -186,12 +186,12 @@ public:
         obj->accept(v);        
     }
     
-    IObject::iterator begin();
-    IObject::iterator end();
-    IObject::const_iterator begin()const ;
-    IObject::const_iterator end()const;
-    IObject::const_iterator cbegin()const;
-    IObject::const_iterator cend()const;
+    IObject::iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance());
+    IObject::iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance());
+    IObject::const_iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance())const ;
+    IObject::const_iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance())const;
+    IObject::const_iterator cbegin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance())const;
+    IObject::const_iterator cend(estd::poly_alloc_t& a = estd::default_poly_allocator::instance())const;
 
 private:
     void check() const {

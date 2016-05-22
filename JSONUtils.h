@@ -463,7 +463,7 @@ template<typename T>
 using UniquePtr = std::unique_ptr<T, std::function<void(void*)>>;
 
 template<typename T,typename... Args>
-UniquePtr<T> MakeUnique(estd::poly_alloc_t& a, Args&&... args) {
+UniquePtr<T> MakeUnique(std::allocator_arg_t,estd::poly_alloc_t& a, Args&&... args) {
     using traits = std::allocator_traits<estd::poly_alloc_wrapper<T>>;
     estd::poly_alloc_wrapper<T> allocator(a);
     auto deallocator = [&](void* p) mutable { allocator.deallocate(static_cast<T*>(p),1); };
@@ -478,7 +478,7 @@ UniquePtr<T> MakeUnique(estd::poly_alloc_t& a, Args&&... args) {
 
 template<typename T, typename... Args>
 UniquePtr<T> MakeUnique(Args&&... args) {
-    return MakeUnique(estd::default_poly_allocator::instance(), std::forward<Args>(args)...);
+    return MakeUnique(std::allocator_arg,estd::default_poly_allocator::instance(), std::forward<Args>(args)...);
 
 }
 

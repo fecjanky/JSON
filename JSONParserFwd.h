@@ -98,7 +98,7 @@ struct ISubParserState {
             std::is_base_of<ISubParser, SubParserT>::value> >
     static ISubParserStatePtr Create(IParser& p) {
         using State = typename SubParserT::State;
-        return Utils::ToUniquePtr<ISubParserState>(Utils::MakeUnique<State>(p.getAllocator(),State(p)));
+        return Utils::ToUniquePtr<ISubParserState>(Utils::MakeUnique<State>(std::allocator_arg, p.getAllocator(),State(p)));
     }
 };
 

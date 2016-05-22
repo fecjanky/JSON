@@ -84,12 +84,12 @@ struct IndividualObject: public IObject {
     IObjectRef operator[](size_t index) override;
     const IObject& operator[](size_t index) const override;
     void serialize(StringType&& indentation, OstreamT& os) const override;
-    iterator begin() override;
-    iterator end() override;
-    const_iterator begin() const override;
-    const_iterator end() const override;
-    const_iterator cbegin() const override;
-    const_iterator cend() const override;
+    iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) override;
+    iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) override;
+    const_iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
+    const_iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
+    const_iterator cbegin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
+    const_iterator cend(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
 
 };
 
@@ -121,12 +121,12 @@ class Object: public impl::IObjectIFImpl<AggregateObject,Object> {
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     bool compare(const Object&) const noexcept;
-    iterator begin() override;
-    iterator end() override;
-    const_iterator begin() const override;
-    const_iterator end() const override;
-    const_iterator cbegin() const override;
-    const_iterator cend() const override;
+    iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) override;
+    iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) override;
+    const_iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
+    const_iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
+    const_iterator cbegin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
+    const_iterator cend(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
  private:
     Container values;
 };
@@ -165,12 +165,12 @@ class Array: public impl::IObjectIFImpl<AggregateObject, Array> {
     void serialize(StringType&& indentation, OstreamT& os) const override;
     void serialize(OstreamT& os) const override;
     bool compare(const Array&) const noexcept;
-    iterator begin() override;
-    iterator end() override;
-    const_iterator begin() const override;
-    const_iterator end() const override;
-    const_iterator cbegin() const override;
-    const_iterator cend() const override;
+    iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) override;
+    iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) override;
+    const_iterator begin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
+    const_iterator end(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
+    const_iterator cbegin(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
+    const_iterator cend(estd::poly_alloc_t& a = estd::default_poly_allocator::instance()) const override;
  private:
     Container values;
 };
@@ -308,7 +308,7 @@ struct IsJSONType<
 
 template<typename T, typename ... Args>
 std::enable_if_t<IsJSONType<T>::value, IObject::Ptr> Create(std::allocator_arg_t,estd::poly_alloc_t& a,Args&&... args) {
-    return Utils::ToUniquePtr<IObject>(Utils::MakeUnique<T>(a,a,std::forward<Args>(args)...));
+    return Utils::ToUniquePtr<IObject>(Utils::MakeUnique<T>(std::allocator_arg, a,a,std::forward<Args>(args)...));
 }
 
 template<typename T, typename ... Args>

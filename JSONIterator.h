@@ -216,95 +216,95 @@ private:
 };
 
 
-inline IndividualObject::iterator IndividualObject::begin()
+inline IndividualObject::iterator IndividualObject::begin(estd::poly_alloc_t& a)
 {
-    return iterator(std::make_unique<IndividualIterator<IndividualObject>>(*this));
+    return iterator(Utils::MakeUnique<IndividualIterator<IndividualObject>>(std::allocator_arg,a,*this));
 }
 
-inline IndividualObject::iterator IndividualObject::end()
+inline IndividualObject::iterator IndividualObject::end(estd::poly_alloc_t& a)
 {
     return iterator();
 }
 
-inline IndividualObject::const_iterator IndividualObject::begin() const
+inline IndividualObject::const_iterator IndividualObject::begin(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<IndividualIterator<const IndividualObject>>(*this));
+    return const_iterator(Utils::MakeUnique<IndividualIterator<const IndividualObject>>(std::allocator_arg, a,*this));
 }
 
-inline IndividualObject::const_iterator IndividualObject::end() const
+inline IndividualObject::const_iterator IndividualObject::end(estd::poly_alloc_t& a) const
 {
     return const_iterator();
 }
 
-inline IndividualObject::const_iterator IndividualObject::cbegin() const
+inline IndividualObject::const_iterator IndividualObject::cbegin(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<IndividualIterator<const IndividualObject>>(*this));
+    return const_iterator(Utils::MakeUnique<IndividualIterator<const IndividualObject>>(std::allocator_arg, a, *this));
 }
 
-inline IndividualObject::const_iterator IndividualObject::cend() const
+inline IndividualObject::const_iterator IndividualObject::cend(estd::poly_alloc_t& a) const
 {
     return const_iterator();
 }
 
 
-inline Object::iterator Object::begin()
+inline Object::iterator Object::begin(estd::poly_alloc_t& a)
 {
-    return iterator(std::make_unique<ObjectIterator<Object>>(*this, values.begin()));
+    return iterator(Utils::MakeUnique<ObjectIterator<Object>>(std::allocator_arg, a, *this, values.begin()));
 }
 
-inline Object::iterator Object::end()
+inline Object::iterator Object::end(estd::poly_alloc_t& a)
 {
-    return iterator(std::make_unique<ObjectIterator<Object>>(*this, values.end()));
+    return iterator(Utils::MakeUnique<ObjectIterator<Object>>(std::allocator_arg, a, *this, values.end()));
 }
 
-inline Object::const_iterator Object::begin() const
+inline Object::const_iterator Object::begin(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<ObjectIterator<const Object>>(*this, values.begin()));
+    return const_iterator(Utils::MakeUnique<ObjectIterator<const Object>>(std::allocator_arg, a, *this, values.begin()));
 }
 
-inline Object::const_iterator Object::end() const
+inline Object::const_iterator Object::end(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<ObjectIterator<const Object>>(*this, values.end()));
+    return const_iterator(Utils::MakeUnique<ObjectIterator<const Object>>(std::allocator_arg, a, *this, values.end()));
 }
 
-inline Object::const_iterator Object::cbegin() const
+inline Object::const_iterator Object::cbegin(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<ObjectIterator<const Object>>(*this, values.begin()));
+    return const_iterator(Utils::MakeUnique<ObjectIterator<const Object>>(std::allocator_arg, a, *this, values.begin()));
 }
 
-inline Object::const_iterator Object::cend() const
+inline Object::const_iterator Object::cend(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<ObjectIterator<const Object>>(*this, values.end()));
+    return const_iterator(Utils::MakeUnique<ObjectIterator<const Object>>(std::allocator_arg, a, *this, values.end()));
 }
 
-inline Array::iterator Array::begin()
+inline Array::iterator Array::begin(estd::poly_alloc_t& a)
 {
-    return iterator(std::make_unique<ArrayIterator<Array>>(*this, values.begin()));
+    return iterator(Utils::MakeUnique<ArrayIterator<Array>>(std::allocator_arg, a, *this, values.begin()));
 }
 
-inline Array::iterator Array::end()
+inline Array::iterator Array::end(estd::poly_alloc_t& a)
 {
-    return iterator(std::make_unique<ArrayIterator<Array>>(*this, values.end()));
+    return iterator(Utils::MakeUnique<ArrayIterator<Array>>(std::allocator_arg, a, *this, values.end()));
 }
 
-inline Array::const_iterator Array::begin() const
+inline Array::const_iterator Array::begin(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<ArrayIterator<const Array>>(*this, values.begin()));
+    return const_iterator(Utils::MakeUnique<ArrayIterator<const Array>>(std::allocator_arg, a, *this, values.begin()));
 }
 
-inline Array::const_iterator Array::end() const
+inline Array::const_iterator Array::end(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<ArrayIterator<const Array>>(*this, values.end()));
+    return const_iterator(Utils::MakeUnique<ArrayIterator<const Array>>(std::allocator_arg, a, *this, values.end()));
 }
 
-inline Array::const_iterator Array::cbegin() const
+inline Array::const_iterator Array::cbegin(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<ArrayIterator<const Array>>(*this, values.begin()));
+    return const_iterator(Utils::MakeUnique<ArrayIterator<const Array>>(std::allocator_arg, a, *this, values.begin()));
 }
 
-inline Array::const_iterator Array::cend() const
+inline Array::const_iterator Array::cend(estd::poly_alloc_t& a) const
 {
-    return const_iterator(std::make_unique<ArrayIterator<const Array>>(*this, values.end()));
+    return const_iterator(Utils::MakeUnique<ArrayIterator<const Array>>(std::allocator_arg, a, *this, values.end()));
 }
 
 
@@ -376,11 +376,18 @@ private:
 };
 
 template<typename T>
-IteratorRef<Iterator<T>> MakePreorderIterator(IteratorRef<Iterator<T>>&& i)
+IteratorRef<Iterator<T>> MakePreorderIterator(std::allocator_arg_t,estd::poly_alloc_t& a,IteratorRef<Iterator<T>>&& i)
 {
     return IteratorRef<Iterator<T>>(
-        std::make_unique<PreOrderIterator<T>>(std::move(i)));
+        Utils::MakeUnique<PreOrderIterator<T>>(std::allocator_arg, a,std::move(i)));
 }
+
+template<typename T>
+IteratorRef<Iterator<T>> MakePreorderIterator(IteratorRef<Iterator<T>>&& i)
+{
+    return MakePreorderIterator(std::allocator_arg, estd::default_poly_allocator::instance(), std::move(i));
+}
+
 
 
 }  // namespace JSON
