@@ -7,6 +7,7 @@
 
 class TestAllocator {
 public:
+    static constexpr size_t cache_line_size = 64;
     using value_type = uint8_t;
 
     TestAllocator(size_t size) : _size{ size }, memory{ new uint8_t[_size] }, free{ memory } {
@@ -48,25 +49,46 @@ public:
     }
 
     uint8_t* allocate(size_t n,const uint8_t*) {
+        auto f = get_from_free_list(n);
+        if (f.first != nullptr) return f.first;
         if (free + n >= memory + _size) throw std::bad_alloc{};
         auto ret = free;
+        //free += (n + cache_line_size - 1) / cache_line_size;
         free += n;
         return ret;
     }
 
-    void deallocate(uint8_t *,size_t) {
+    void deallocate(uint8_t * p,size_t n) {
+        if (p + n == free) 
+            free = p;
+        else
+            free_list.emplace_back(p, n);
     }
 
 private:
+
     void tidy() noexcept{
         delete[] memory;
         free = memory = nullptr;
         _size = 0;
     }
-
+    using free_descr_t = std::pair<uint8_t*, size_t>;
+    using free_list_t = std::vector<free_descr_t>;
     size_t _size;
     uint8_t* memory;
     uint8_t* free;
+    free_list_t free_list;
+
+    free_descr_t get_from_free_list(size_t n) {
+        using namespace std;
+        free_descr_t ret{};
+        auto it = find_if(begin(free_list), end(free_list), [n](free_descr_t x) {return n == x.second;});
+        if (it != free_list.end()) {
+            ret = *it;
+            free_list.erase(it);
+        }
+        return ret;
+    }
 
 };
 

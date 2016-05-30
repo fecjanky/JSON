@@ -460,21 +460,19 @@ private:
 };
 
 template<typename T>
-using UniquePtr = std::unique_ptr<T, std::function<void(void*)>>;
+using UniquePtr = std::unique_ptr<T, estd::poly_deleter>;
 
-template<typename T,typename... Args>
-UniquePtr<T> MakeUnique(std::allocator_arg_t,estd::poly_alloc_t& a, Args&&... args) {
+template<typename T, typename... Args>
+UniquePtr<T> MakeUnique(std::allocator_arg_t, estd::poly_alloc_t& a, Args&&... args) {
     using traits = std::allocator_traits<estd::poly_alloc_wrapper<T>>;
     estd::poly_alloc_wrapper<T> allocator(a);
-    auto deallocator = [&](void* p) mutable { allocator.deallocate(static_cast<T*>(p),1); };
-    UniquePtr<T> temp(allocator.allocate(1),std::move(deallocator));
-    new (temp.get()) T(std::forward<Args>(args)...);
-    auto deleter = [=](void* p) mutable { 
-        auto pp = static_cast<T*>(p);traits::destroy(allocator, pp); allocator.deallocate(pp, 1); 
-    };
-    return UniquePtr<T>(temp.release(),std::move(deleter));
+    auto deallocator = [&](void* p) mutable { allocator.deallocate(static_cast<T*>(p), 1); };
+    std::unique_ptr<T,decltype(deallocator)> temp(allocator.allocate(1), std::move(deallocator));
+    traits::construct(allocator, temp.get(), std::forward<Args>(args)...);
+    return UniquePtr<T>(temp.release(), estd::poly_deleter::from(allocator));
 
 }
+
 
 template<typename T, typename... Args>
 UniquePtr<T> MakeUnique(Args&&... args) {

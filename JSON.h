@@ -82,10 +82,9 @@ struct AttributeNotUnique: public JSON::Exception {
 class IObjectRef;
 
 struct IObject {
-    using Ptr = std::unique_ptr<IObject,std::function<void(void*)>>;
+    using Ptr = std::unique_ptr<IObject,estd::poly_deleter>;
     using CharAllocator = estd::poly_alloc_wrapper<char>;
     using StringType = std::basic_string<char, std::char_traits<char>, CharAllocator>;
-    //using StringType = std::string;
     using OstreamT = std::ostream;
     using SStream = std::basic_stringstream<char, std::char_traits<char>, CharAllocator>;
 
